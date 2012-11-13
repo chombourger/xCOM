@@ -1,0 +1,7 @@
+<node>
+   <interface name="xcom.examples.hello">
+      <method name="say">
+         <arg direction="in" type="s" name="greeting"/>
+      </method>
+  </interface>
+</node>
