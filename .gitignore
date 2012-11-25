@@ -22,3 +22,4 @@ xcom-spawn
 *.lo
 *.la
 *.o
+*.pyc
