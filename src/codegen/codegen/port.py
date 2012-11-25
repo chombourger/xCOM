@@ -22,6 +22,8 @@ class Port:
    def __init__ (self, parent):
       self.m_name = '';
       self.m_interface = '';
+      self.m_versionMajor = None;
+      self.m_versionMinor = None;
       self.m_provided = True;
       self.m_multiple = False;
       self.m_runtime = False;
@@ -71,6 +73,18 @@ class Port:
    def setPort (self, p):
       self.m_port = p;
 
+   def versionMajor (self):
+      return self.m_versionMajor;
+   
+   def setVersionMajor (self, v):
+      self.m_versionMajor = v;
+      
+   def versionMinor (self):
+      return self.m_versionMinor;
+   
+   def setVersionMinor (self, v):
+      self.m_versionMinor = v;
+       
    def parent (self):
       return self.m_parent;
 

@@ -131,6 +131,10 @@ class XmlParser:
          prt.setComponent (attrs['component']);
       if attrs.has_key ('port'):
          prt.setComponent (attrs['port']);
+      if attrs.has_key ('version-major'):
+         prt.setVersionMajor (attrs['version-major']);
+      if attrs.has_key ('version-minor'):
+         prt.setVersionMinor (attrs['version-minor']);
       if attrs.has_key ('provided'):
          provided = attrs['provided'];
          if provided == "true":
@@ -185,7 +189,7 @@ class XmlParser:
       if attrs.has_key ('name'):
          mthd.setName (attrs['name']);
       self.m_stack.append (mthd);
-      self.setState (XmlParser.STATE_METHOD);
+      self.pushState (XmlParser.STATE_METHOD);
       return True;
 
    def handleStartArgument (self, name, attrs):

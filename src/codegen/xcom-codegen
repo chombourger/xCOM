@@ -16,27 +16,76 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
+import os;
+import string;
 import sys;
 import optparse;
 
 from codegen import parser;
 
-def xc_codegen_main():
+def find_interface (interfaces, name, vmaj, vmin):
+   found = False;
+   for i in interfaces:
+      if i.name() != name:
+         continue;
+      if vmaj is not None and vmaj != i.versionMajor ():
+         continue;
+      if vmin is not None and vmin != i.versionMinor ():
+         continue;
+      found = True;
+      break;
+   return found;
+   
+def xc_codegen_main ():
 
    # Create parser for option arguments
    opt_parser = optparse.OptionParser ('%prog [options] files...');
-   # TODO add options here
+   opt_parser.add_option ('-I', '--include-path',
+                          metavar='INC', action='append',
+                          help='Path to XML interface specifications');
 
    # Parse command line
    (opts, args) = opt_parser.parse_args ();
 
    # Parse supplied XML files
+   components = [];
+   interfaces = [];
    for path in args:
       fd  = open (path);
       xmlData = fd.read ();
       fd.close ();
-      parser.parse (path, xmlData);
+      result = parser.parse (path, xmlData);
+      components.extend (result.components ());
+      interfaces.extend (result.interfaces ());
 
+   # Process component
+   for c in components:
+      for p in c.ports():
+         intf = p.interface ();
+         vmaj = p.versionMajor ();
+         vmin = p.versionMinor ();
+         found = find_interface (interfaces, intf, vmaj, vmin);
+         if found == False:
+            filename = string.replace (intf, ".", "/") + ".xml";
+            if opts.include_path is not None:
+               for dir in opts.include_path:
+                  path = dir + "/" + filename;
+                  try:
+                     fd = open (path);
+                     xmlData = fd.read ();
+                     fd.close ();
+                     result = parser.parse (path, xmlData);
+                     if result.interfaces() is not None:
+                        found = find_interface (result.interfaces(), intf, vmaj, vmin);
+                        if found == True:
+                           interfaces.extend (result.interfaces ());
+                           break;
+                  except:
+                     found = False;
+         if found == False:
+            print '# unknown interface ' + intf + '!';
+            sys.exit (1);
+            
    print '# main()';
 
 if __name__ == "__main__":
