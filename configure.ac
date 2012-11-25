@@ -43,17 +43,22 @@ AX_LIB_EXPAT
 
 PKG_CHECK_MODULES(                                                          
    [GLIB],                                                                  
-   [glib-2.0 >= 2.28.0],                                                    
+   [glib-2.0 >= 2.24.0],                                                    
    [AC_DEFINE([GLIB_ENABLED],[1],[Define to 1 if glib support is needed])], 
    [AC_MSG_NOTICE([Compiling without glib support])]                        
 )
 
 PKG_CHECK_MODULES(                                                          
    [GIO_UNIX],                                                                  
-   [gio-unix-2.0 >= 2.28.0],                                                    
-   [AC_DEFINE([GIO_UNIX_ENABLED],[1],[Define to 1 if gio-unix support is needed])], 
-   [AC_MSG_NOTICE([Compiling without gio-unix support])]                        
+   [gio-unix-2.0 >= 2.28.0],
+   xc_have_gio_unix=yes,
+   xc_have_gio_unix=no
 )
+
+AM_CONDITIONAL(HAVE_GIO_UNIX, [test "$xc_have_gio_unix" = "yes"])
+if test "$xc_have_gio_unix" = "yes"; then
+   AC_DEFINE([GIO_UNIX_ENABLED],[1],[Define to 1 if gio-unix support is needed])
+fi
 
 AC_CONFIG_FILES([
    Makefile
