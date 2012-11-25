@@ -21,6 +21,8 @@
 #ifndef INTERNAL_H
 #define INTERNAL_H
 
+#define _GNU_SOURCE 1
+
 #ifndef  TRACE_CLASS_DEFAULT
 #define  TRACE_CLASS_DEFAULT XCOM
 #endif
