@@ -24,10 +24,17 @@ class Interface:
       self.m_vmajor = 0;
       self.m_vminor = 0;
       self.m_methods = [];
+      self.m_references = 0;
 
    def addMethod (self, m):
       self.m_methods.append (m);
 
+   def addReference (self):
+      self.m_references = self.m_references + 1;
+      
+   def references (self):
+      return self.m_references;
+   
    def methods (self):
       return self.m_methods;
 
@@ -44,8 +51,8 @@ class Interface:
       self.m_name = s;
 
    def setVersionMajor (self, v):
-      self.m_vmajor = v;
+      self.m_vmajor = int(v);
 
    def setVersionMinor (self, v):
-      self.m_vminor = v;
+      self.m_vminor = int(v);
 

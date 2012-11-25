@@ -21,21 +21,10 @@ import string;
 import sys;
 import optparse;
 
+from codegen import cgeneric;
+from codegen import match;
 from codegen import parser;
 
-def find_interface (interfaces, name, vmaj, vmin):
-   found = False;
-   for i in interfaces:
-      if i.name() != name:
-         continue;
-      if vmaj is not None and vmaj != i.versionMajor ():
-         continue;
-      if vmin is not None and vmin != i.versionMinor ():
-         continue;
-      found = True;
-      break;
-   return found;
-   
 def xc_codegen_main ():
 
    # Create parser for option arguments
@@ -43,6 +32,9 @@ def xc_codegen_main ():
    opt_parser.add_option ('-I', '--include-path',
                           metavar='INC', action='append',
                           help='Path to XML interface specifications');
+   opt_parser.add_option ('-n', '--name',
+                          metavar='NAME',
+                          help='Base name for the output file(s)');
 
    # Parse command line
    (opts, args) = opt_parser.parse_args ();
@@ -64,8 +56,8 @@ def xc_codegen_main ():
          intf = p.interface ();
          vmaj = p.versionMajor ();
          vmin = p.versionMinor ();
-         found = find_interface (interfaces, intf, vmaj, vmin);
-         if found == False:
+         found = match.interface (interfaces, intf, vmaj, vmin);
+         if found is None:
             filename = string.replace (intf, ".", "/") + ".xml";
             if opts.include_path is not None:
                for dir in opts.include_path:
@@ -76,16 +68,23 @@ def xc_codegen_main ():
                      fd.close ();
                      result = parser.parse (path, xmlData);
                      if result.interfaces() is not None:
-                        found = find_interface (result.interfaces(), intf, vmaj, vmin);
-                        if found == True:
+                        found = match.interface (result.interfaces(), intf, vmaj, vmin);
+                        if found is not None:
                            interfaces.extend (result.interfaces ());
                            break;
                   except:
-                     found = False;
-         if found == False:
+                     found = None;
+         if found is None:
             print '# unknown interface ' + intf + '!';
             sys.exit (1);
-            
+         else:
+            found.addReference ();
+
+   # Generate code
+   if opts.name is not None:
+      gen = cgeneric.CodeGenerator (opts.name, components, interfaces, opts);
+      gen.write ();
+                  
    print '# main()';
 
 if __name__ == "__main__":

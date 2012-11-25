@@ -16,36 +16,15 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
-import sys;
-
-class Component: 
-   def __init__ (self):
-      self.m_name = '';
-      self.m_vmajor = 0;
-      self.m_vminor = 0;
-      self.m_ports = [];
-
-   def addPort (self, p):
-      self.m_ports.append (p);
-
-   def ports (self):
-      return self.m_ports;
-
-   def name (self):
-      return self.m_name;
-
-   def versionMajor (self):
-      return self.m_vmajor;
-
-   def versionMinor (self):
-      return self.m_vminor;
-
-   def setName (self, s):
-      self.m_name = s;
-
-   def setVersionMajor (self, v):
-      self.m_vmajor = int(v);
-
-   def setVersionMinor (self, v):
-      self.m_vminor = int(v);
-
+def interface (interfaces, name, vmaj, vmin):
+   result = None;
+   for i in interfaces:
+      if i.name() != name:
+         continue;
+      if vmaj is not None and vmaj != i.versionMajor ():
+         continue;
+      if vmin is not None and vmin != i.versionMinor ():
+         continue;
+      result = i;
+      break;
+   return result;

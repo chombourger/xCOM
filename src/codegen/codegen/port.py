@@ -77,13 +77,13 @@ class Port:
       return self.m_versionMajor;
    
    def setVersionMajor (self, v):
-      self.m_versionMajor = v;
+      self.m_versionMajor = int(v);
       
    def versionMinor (self):
       return self.m_versionMinor;
    
    def setVersionMinor (self, v):
-      self.m_versionMinor = v;
+      self.m_versionMinor = int(v);
        
    def parent (self):
       return self.m_parent;
