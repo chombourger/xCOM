@@ -87,10 +87,10 @@ query_match_provider (
    if (result == true) { 
       result = interfaces_match (
          &providerPtr->interfaceSpec,
-         providerPtr->proto,
+         providerPtr->port,
          NULL,
          &queryPtr->queriedInterface,
-         queryPtr->queriedProtocol,
+         queryPtr->queriedPort,
          NULL,
          MATCHF_NONE
       );
@@ -180,7 +180,7 @@ query_new (
    unsigned int interfaceMajorVersion,
    unsigned int interfaceMinorVersion,
    const char *queriedComponentName,
-   const char *queriedProtocolName,
+   const char *queriedPortName,
    unsigned int queryFlags,
    xc_handle_t *queryHandlePtr,
    unsigned int *matchCountPtr
@@ -191,10 +191,10 @@ query_new (
 
    TRACE3 ((
       "called with componentHandle=%u, interfaceName='%s', interfaceMajorVersion=%u, "
-      "interfaceMinorVersion=%u, queriedComponentName='%s', queriedProtocolName='%s', "
+      "interfaceMinorVersion=%u, queriedComponentName='%s', queriedPortName='%s', "
       "queryFlags=0x%x, queryHandlePtr=%p, matchCountPtr=%p", componentHandle,
       interfaceName, interfaceMajorVersion, interfaceMinorVersion, queriedComponentName,
-      queriedProtocolName, queryFlags, queryHandlePtr, matchCountPtr
+      queriedPortName, queryFlags, queryHandlePtr, matchCountPtr
    ));
    assert (interfaceName != NULL);
    assert (queryHandlePtr != NULL);
@@ -204,7 +204,7 @@ query_new (
       /* Initialize things to be allocated to sane values. */
       queryPtr->queryHandle = XC_INVALID_HANDLE;
       queryPtr->queriedComponent = NULL;
-      queryPtr->queriedProtocol = NULL;
+      queryPtr->queriedPort = NULL;
       queryPtr->componentPtr = NULL;
       queryPtr->firstImportPtr = NULL;
       queryPtr->lastImportPtr = NULL;
@@ -240,10 +240,10 @@ query_new (
          }
       }
 
-      /* Copy queried protocol name if specified. */
-      if ((result == XC_OK) && (queriedProtocolName != NULL)) {
-         queryPtr->queriedProtocol = strdup (queriedProtocolName);
-         if (queryPtr->queriedProtocol == NULL) {
+      /* Copy queried port name if specified. */
+      if ((result == XC_OK) && (queriedPortName != NULL)) {
+         queryPtr->queriedPort = strdup (queriedPortName);
+         if (queryPtr->queriedPort == NULL) {
             TRACE1 (("Out of memory!"));
             result = XC_ERR_NOMEM;
          }
@@ -292,7 +292,7 @@ query_free (
       handle_dir_remove (queryHandles, queryPtr->queryHandle);
    }
 
-   free (queryPtr->queriedProtocol);
+   free (queryPtr->queriedPort);
    free (queryPtr->queriedComponent);
    free ((void *) queryPtr->queriedInterface.name);
 
@@ -312,7 +312,7 @@ xCOM_QueryInterface (
    unsigned int interfaceMajorVersion,
    unsigned int interfaceMinorVersion,
    const char *queriedComponentName,
-   const char *queriedProtocolName,
+   const char *queriedPortName,
    unsigned int queryFlags,
    xc_handle_t *queryHandlePtr,
    unsigned int *matchCountPtr
@@ -322,10 +322,10 @@ xCOM_QueryInterface (
 
    TRACE3 ((
       "called with componentHandle=%u, interfaceName='%s', interfaceMajorVersion=%u, "
-      "interfaceMinorVersion=%u, queriedComponentName='%s', queriedProtocolName='%s', "
+      "interfaceMinorVersion=%u, queriedComponentName='%s', queriedPortName='%s', "
       "queryFlags=0x%x, queryHandlePtr=%p, matchCountPtr=%p", componentHandle,
       interfaceName, interfaceMajorVersion, interfaceMinorVersion, queriedComponentName,
-      queriedProtocolName, queryFlags, queryHandlePtr, matchCountPtr
+      queriedPortName, queryFlags, queryHandlePtr, matchCountPtr
    ));
 
    if (componentHandle == XC_INVALID_HANDLE) {
@@ -341,7 +341,7 @@ xCOM_QueryInterface (
    else {
       result = query_new (
          componentHandle, interfaceName, interfaceMajorVersion, interfaceMinorVersion,
-         queriedComponentName, queriedProtocolName, queryFlags, queryHandlePtr, matchCountPtr
+         queriedComponentName, queriedPortName, queryFlags, queryHandlePtr, matchCountPtr
       );
    }
 
@@ -466,7 +466,7 @@ xCOM_QueryPort (
                   portPtr->interfaceSpec.vmajor,
                   portPtr->interfaceSpec.vminor,
                   portPtr->componentName,
-                  portPtr->proto,
+                  portPtr->port,
                   queryFlags,
                   queryHandlePtr,
                   matchCountPtr

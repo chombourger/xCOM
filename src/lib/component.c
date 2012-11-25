@@ -670,7 +670,7 @@ component_loadtime_import (
       portPtr->interfaceSpec.vmajor,
       portPtr->interfaceSpec.vminor,
       portPtr->componentName,
-      portPtr->proto,
+      portPtr->port,
       XC_QUERYF_NONE,
       &queryHandle,
       &matchCount

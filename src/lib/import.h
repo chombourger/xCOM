@@ -37,7 +37,7 @@ struct Import {
    xc_handle_t clientHandle;        /**< Client component handle. */
    port_t *serverPortPtr;
    xc_interface_t *interfacePtr;
-   char *clientProto;
+   char *portName;
 };
 
 xc_result_t

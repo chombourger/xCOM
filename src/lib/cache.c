@@ -49,13 +49,13 @@ cache_write_port (
 
    fprintf (cacheFile,
       "<port name='%s' interface='%s' vmajor='%u' vminor='%u' size='%u' "
-      "proto='%s' flags='%u' component='%s'></port>",
+      "port='%s' flags='%u' component='%s'></port>",
       (portPtr->name != NULL) ? portPtr->name : "",
       (portPtr->interfaceSpec.name != NULL) ? portPtr->interfaceSpec.name : "",
       portPtr->interfaceSpec.vmajor,
       portPtr->interfaceSpec.vminor,
       portPtr->interfaceSize,
-      (portPtr->proto != NULL) ? portPtr->proto : "",
+      (portPtr->port != NULL) ? portPtr->port : "",
       portPtr->flags,
       (portPtr->componentName != NULL) ? portPtr->componentName : ""
    );
@@ -185,8 +185,8 @@ handle_cache_start_tag (
                portPtr->interfaceSpec.vminor = atoi (attr[i+1]);
             else if (strcmp (attr[i], "size") == 0)
                portPtr->interfaceSize = atoi (attr[i+1]);
-            else if (strcmp (attr[i], "proto") == 0)
-               portPtr->proto = strdup_p (attr[i+1]);
+            else if (strcmp (attr[i], "port") == 0)
+               portPtr->port = strdup_p (attr[i+1]);
             else if (strcmp (attr[i], "flags") == 0)
                portPtr->flags = atoi (attr[i+1]);
             else if (strcmp (attr[i], "compoent") == 0)

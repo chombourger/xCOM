@@ -47,7 +47,7 @@ typedef struct {
    component_t *componentPtr;       /**< Pointer to the component issuing the query. */
    xc_interface_t queriedInterface; /**< Queried interface description. */
    char *queriedComponent;          /**< Component name if query against a specific server. */
-   char *queriedProtocol;           /**< Protocol name if a specific one requested. */
+   char *queriedPort;               /**< Port name if a specific one requested. */
    unsigned int queryFlags;         /**< Combination of XC_QUERYF_ flags. */
    xc_clist_t imports;              /**< List of imports. */
    import_t *firstImportPtr;        /**< First matching import from this query. */
@@ -73,7 +73,7 @@ query_destroy (
   * @param interfaceMajorVersion major version number to be matched.
   * @param interfaceMinorVersion minor version number to be matched.
   * @param queriedComponentName name of the component to provide the interface
-  * @param queriedProtocol protocol to be supported
+  * @param queriedPortName targeted server component(s) port to be matched
   * @param queryFlags query flags
   * @param queryHandlePtr pointer to where the created query handle should be stored.
   * @param matchCountPtr pointer to where the number of matches should be stored.
@@ -88,7 +88,7 @@ query_new (
    unsigned int interfaceMajorVersion,
    unsigned int interfaceMinorVersion,
    const char *queriedComponentName,
-   const char *queriedProtocolName,
+   const char *queriedPortName,
    unsigned int queryFlags,
    xc_handle_t *queryHandlePtr,
    unsigned int *matchCountPtr

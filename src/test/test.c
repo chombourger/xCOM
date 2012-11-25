@@ -210,7 +210,7 @@ XC_DECLARE_COMPONENT {
          "Application",                       /* Port name */
          (xc_interface_t *) &applicationImpl, /* Export switch */
          sizeof (applicationImpl),            /* Size of the export switch */
-         NULL,                                /* Protocol */
+         NULL,                                /* Port */
          NULL,                                /* Reserved */
          NULL,                                /* register() */
          NULL                                 /* unregister() */
@@ -221,7 +221,7 @@ XC_DECLARE_COMPONENT {
          (xc_interface_t *) &testImport,      /* Interface spec */
          NULL,                                /* Import handle */
          NULL,                                /* Queried component name */
-         NULL,                                /* Queried protocol */
+         NULL,                                /* Queried port */
          NULL,                                /* Reserved */
          XC_PORTF_NONE                        /* Port flags */
       ),

@@ -39,7 +39,7 @@ struct Port {
    xc_interface_t interfaceSpec;
    const xc_interface_t *interfacePtr;
    unsigned int interfaceSize;
-   char *proto;
+   char *port;
    void *reserved;
    unsigned int flags;
    /* Provided ports */

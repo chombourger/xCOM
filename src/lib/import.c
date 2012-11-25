@@ -107,11 +107,11 @@ import_new (
       importPtr->serverHandle = providerPtr->componentHandle;
       importPtr->serverComponentPtr = NULL;
       importPtr->clientHandle = clientHandle;
-      importPtr->clientProto = NULL;
+      importPtr->portName = NULL;
       importPtr->interfacePtr = NULL;
-      if (providerPtr->proto != NULL) {
-         importPtr->clientProto = strdup (providerPtr->proto);
-         if (importPtr->clientProto == NULL) {
+      if (providerPtr->port != NULL) {
+         importPtr->portName = strdup (providerPtr->port);
+         if (importPtr->portName == NULL) {
             TRACE1 (("Out of memory!"));
             import_free (importPtr);
             importPtr = NULL;
@@ -172,7 +172,7 @@ import_free (
       component_unref (importPtr->serverComponentPtr);
    }
 
-   free (importPtr->clientProto);
+   free (importPtr->portName);
    free (importPtr->interfacePtr);
    free (importPtr);
 

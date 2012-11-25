@@ -133,7 +133,7 @@ struct __xc_port_decl__ {
    const xc_interface_t *interfacePtr; /**< Pointer to the interface declaration. */
    unsigned int interfaceSize;         /**< Size of the interface declaration. */
    const char *component;              /**< Name of the queried component. */
-   const char *proto;                  /**< Queried protocol or NULL for any. */
+   const char *port;                   /**< Queried port or NULL for any. */
    void *reserved;                     /**< Reserved for future use. */
    unsigned int flags;                 /**< xCOM port flags, see XCOM_PORTF_ defines. */
    const xc_register_t onRegister;     /**< Register function for a "provided interface" port. */
@@ -186,7 +186,7 @@ struct __xc_component_decl__ {
   *          "Application",             // Name of the provided port
   *          (xc_interface_t *) &myApp, // Pointer to exported switch
   *          sizeof (myApp),            // Size of the export switch
-  *          NULL,                      // Protocol name
+  *          NULL,                      // Port name
   *          NULL,                      // Reserved for future use, pass NULL
   *          my_app_register,           // register() for this port
   *          my_app_unregister          // unregister() for this port
@@ -211,7 +211,7 @@ struct __xc_component_decl__ {
   * @param n name of the port
   * @param i pointer to the exported interface switch
   * @param sz size of exported interface switch
-  * @param p name of the protocol
+  * @param p name of the port
   * @param r reserved for future use, pass NULL
   * @param reg register() method for this port
   * @param unreg unregister() method for this port
@@ -223,7 +223,7 @@ struct __xc_component_decl__ {
       i,                 /* interfacePtr */            \
       sz,                /* interfaceSize */           \
       NULL,              /* component */               \
-      p,                 /* proto */                   \
+      p,                 /* port */                    \
       r,                 /* reserved */                \
       XC_PORTF_PROVIDED, /* flags */                   \
       reg,               /* onRegister */              \
@@ -241,7 +241,7 @@ struct __xc_component_decl__ {
   * @param i pointer to the imported interface declaration
   * @param h where to store the import handle
   * @param c name of the queried component or NULL
-  * @param p name of the queried protocol or NULL
+  * @param p name of the queried port or NULL
   * @param r reserved for future use, pass NULL
   * @param f flags for this port (see XC_PORTF_ defines)
   *
@@ -252,7 +252,7 @@ struct __xc_component_decl__ {
       i,                     /* interfacePtr */        \
       0,                     /* interfaceSize */       \
       c,                     /* component */           \
-      p,                     /* proto */               \
+      p,                     /* port */                \
       r,                     /* reserved */            \
       XC_PORTF_REQUIRED | f, /* flags */               \
       NULL,                  /* onRegister */          \
@@ -363,7 +363,7 @@ XCOM_EXPORT;
   * @param interfaceMajorVersion major version of the interface
   * @param interfaceMinorVersion minor version of the interface
   * @param queriedComponentName non-NULL if the query is targetting a specific component. 
-  * @param queriedProtocolName non-NULL to restrict the query to a certain communication protocol.
+  * @param queriedPortName non-NULL to target a specific port.
   * @param queryFlags flags for this query, see XC_QUERYF_ defines.
   * @param queryHandlePtr where to store the created query handle.
   * @param matchCountPtr where to store the number of matches.
@@ -377,7 +377,7 @@ xCOM_QueryInterface (
    unsigned int interfaceMajorVersion,
    unsigned int interfaceMinorVersion,
    const char *queriedComponentName,
-   const char *queriedProtocolName,
+   const char *queriedPortName,
    unsigned int queryFlags,
    xc_handle_t *queryHandlePtr,
    unsigned int *matchCountPtr

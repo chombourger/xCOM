@@ -92,7 +92,7 @@ port_new (
       portPtr->componentPtr = NULL;
       portPtr->componentName = NULL;
       portPtr->interfacePtr = NULL;
-      portPtr->proto = NULL;
+      portPtr->port = NULL;
       portPtr->onRegister = NULL;
       portPtr->onUnRegister = NULL;
       portPtr->importHandlePtr = NULL;
@@ -121,9 +121,9 @@ port_new (
          }
       }
 
-      if (portDeclPtr->proto != NULL) {
-         portPtr->proto = strdup (portDeclPtr->proto);
-         if (portPtr->proto == NULL) {
+      if (portDeclPtr->port != NULL) {
+         portPtr->port = strdup (portDeclPtr->port);
+         if (portPtr->port == NULL) {
             port_free (portPtr);
             portPtr = NULL;
          }
@@ -222,7 +222,7 @@ port_free (
    /* Free remaining memory. */
    free (portPtr->componentName);
    free ((char *)portPtr->interfaceSpec.name);
-   free (portPtr->proto);
+   free (portPtr->port);
    free (portPtr->name);
    free (portPtr);
 

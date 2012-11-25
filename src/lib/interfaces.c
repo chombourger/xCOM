@@ -24,20 +24,20 @@
 bool
 interfaces_match (
    const xc_interface_t *interface1Ptr,
-   const char *proto1,
+   const char *port1,
    void *reserved1,
    const xc_interface_t *interface2Ptr,
-   const char *proto2,
+   const char *port2,
    void *reserved2,
    int flags
 ) {
    bool result = true;
 
    TRACE3 ((
-      "called with interface1Ptr=%p, proto1='%s', reserved1=%p "
-      "interface2Ptr=%p, proto2='%s', reserved2=%p",
-      interface1Ptr, proto1, reserved1,
-      interface2Ptr, proto2, reserved2
+      "called with interface1Ptr=%p, port1='%s', reserved1=%p "
+      "interface2Ptr=%p, port2='%s', reserved2=%p",
+      interface1Ptr, port1, reserved1,
+      interface2Ptr, port2, reserved2
    ));
    assert (interface1Ptr != NULL);
    assert (interface2Ptr != NULL);
@@ -48,10 +48,10 @@ interfaces_match (
       result = false;
    }
 
-   /* Match protocols. */
-   if ((result == XC_OK) && (proto1 != NULL) && (proto2 != NULL)) {
-      if (strcmp (proto1, proto2) != 0) {
-         TRACE4 (("protocols do not match ('%s' vs '%s')", proto1, proto2));
+   /* Match ports. */
+   if ((result == XC_OK) && (port1 != NULL) && (port2 != NULL)) {
+      if (strcmp (port1, port2) != 0) {
+         TRACE4 (("ports do not match ('%s' vs '%s')", port1, port2));
          result = false;
       }
    }
