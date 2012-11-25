@@ -115,12 +115,14 @@ bundle_free (
   * Load components from a component bundle.
   *
   * @param bundlePtr pointer to the component bundle being loaded.
+  * @param flags load flags, see XC_LOADF_ defines.
   * @return XC_OK on success, an xCOM error code otherwise.
   *
   */
 xc_result_t
 bundle_load_components (
-   bundle_t *bundlePtr
+   bundle_t *bundlePtr,
+   unsigned int flags
 );
 
 /**

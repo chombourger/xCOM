@@ -42,6 +42,8 @@
 #include <stdlib.h>
 #endif
 
+#include <getopt.h>
+
 #include <xCOM.h>
 #include <xCOM/IApplication.h>
 #include <xCOM/IService.h>
@@ -79,13 +81,37 @@ main (
    unsigned int i, servicesCount=0, appCount=0;
    xc_iapplication_t *appImpl;
    xc_iservice_t **serviceImpls = NULL;
+   unsigned int flags = XC_LOADF_NONE;
    xc_result_t result;
+
+   while (1) {
+      int option_index = 0, c;
+      static struct option long_options[] = {
+         { "ignore-caches", no_argument, 0, 'i' },
+         { 0, 0, 0, 0 }
+      };
+
+      c = getopt_long (argc, argv, "i", long_options, &option_index);
+      if (c == -1) {
+         break;
+      }
+
+      switch (c) {
+         /* -i, --ignore-caches */
+         case 'i':
+            flags |= XC_LOADF_IGNORE_CACHES;
+            break;
+         /* Unknown option. */
+         case '?':
+            exit (1);
+      }
+   }
 
    result = xCOM_Init ();
    if (result == XC_OK) {
       /* Load bundles provided on the command line. */
-      for (i=1; i<(unsigned int)argc; i++) {
-         result = xCOM_LoadComponentBundle (argv[i]);
+      for (i=optind; i<(unsigned int)argc; i++) {
+         result = xCOM_LoadComponentBundle (argv[i], flags);
          if ((result == XC_ERR_NOENT) && (i==(unsigned int)(argc-1))) {
             appName = argv[i];
             result = XC_OK;

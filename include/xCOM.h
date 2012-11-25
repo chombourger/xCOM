@@ -29,6 +29,9 @@
 extern "C" {
 #endif
 
+#define XC_LOADF_NONE          0  /**< Load with no flags */
+#define XC_LOADF_IGNORE_CACHES 1  /**< Ignore caches when loading bundle */
+
 #define XC_PORTF_NONE      0  /**< Port with no flags */
 
 #define XC_PORTF_ROLE_MASK 1  /**< Bit mask for the role of the port */
@@ -317,12 +320,14 @@ XCOM_EXPORT;
   * Load an xCOM component bundle.
   *
   * @param path path to the component bundle to be loaded.
+  * @param flags load flags, see XC_LOADF_ defines.
   * @return XC_OK on success, an xCOM error code otherwise.
   *
   */
 xc_result_t
 xCOM_LoadComponentBundle (
-   const char *path
+   const char *path,
+   unsigned int flags
 )
 XCOM_EXPORT;
 

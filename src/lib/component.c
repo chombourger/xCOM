@@ -394,17 +394,18 @@ component_introspect (
 
 xc_result_t
 bundle_load_components (
-   bundle_t *bundlePtr
+   bundle_t *bundlePtr,
+   unsigned int flags
 ) {
    xc_result_t result;
    struct stat st;
    char *codePath;
    DIR *dir;
    struct dirent *ent;
-   component_t *componentPtr = NULL;
+   component_t *componentPtr;
    int fd;
 
-   TRACE3 (("called with bundlePtr=%p", bundlePtr));
+   TRACE3 (("called with bundlePtr=%p, flags=0x%x", bundlePtr, flags));
    assert (bundlePtr != NULL);
 
    /* Construct path to component code. */
@@ -426,7 +427,10 @@ bundle_load_components (
             result = fstatat (fd, ent->d_name, &st, AT_SYMLINK_NOFOLLOW);
             if ((result == 0) && (S_ISREG (st.st_mode)) && (IS_EXEC (st.st_mode))) {
                TRACE4 (("loading '%s'", ent->d_name));
-               componentPtr = cache_open (bundlePtr, ent->d_name);
+               componentPtr = NULL;
+               if ((flags & XC_LOADF_IGNORE_CACHES) == 0) {
+                  componentPtr = cache_open (bundlePtr, ent->d_name);
+               }
                if (componentPtr == NULL) {
                   componentPtr = component_introspect (bundlePtr, ent->d_name);
                }
@@ -922,13 +926,14 @@ component_set_descr (
 
 xc_result_t
 xCOM_LoadComponentBundle (
-   const char *path
+   const char *path,
+   unsigned int flags
 ) {
    xc_result_t result = XC_OK;
    bundle_t *bundlePtr = NULL;
    struct stat st;
 
-   TRACE3 (("called with path='%s'", path));
+   TRACE3 (("called with path='%s', flags=0x%x", path, flags));
 
    if (path != NULL) {
       /* Check that the specified path exists. */
@@ -940,7 +945,7 @@ xCOM_LoadComponentBundle (
             bundlePtr = bundle_new (path);
             if (bundlePtr != NULL) {
                XC_CLIST_ADDTAIL (&bundles, bundlePtr);
-               result = bundle_load_components (bundlePtr);
+               result = bundle_load_components (bundlePtr, flags);
             }
             pthread_mutex_unlock (&lock);
          }
