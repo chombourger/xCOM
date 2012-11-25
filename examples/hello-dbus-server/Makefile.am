@@ -7,7 +7,9 @@ libhello_dbus_server_la_LIBADD = $(GIO_UNIX_LIBS) -lpthread -ldl
 libhello_dbus_server_la_LDFLAGS = -version-info 0:0:0
 
 hello-dbus.c hello-dbus.h: hello.xml Makefile
-	gdbus-codegen					\
+	gdbus-codegen							\
 		--interface-prefix xcom.examples.	\
 		--generate-c-code hello-dbus		\
 		$<
+
+server.c: hello-dbus.h
