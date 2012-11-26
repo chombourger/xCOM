@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="examples.hello" version-major="1" version-minor="0">
+   <port name="Hello" interface="examples.IHello"></port>
+</component>

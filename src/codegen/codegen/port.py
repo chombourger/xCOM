@@ -27,8 +27,8 @@ class Port:
       self.m_provided = True;
       self.m_multiple = False;
       self.m_runtime = False;
-      self.m_component = '';
-      self.m_port = '';
+      self.m_component = None;
+      self.m_port = None;
       self.setParent (parent);
 
    def name (self):

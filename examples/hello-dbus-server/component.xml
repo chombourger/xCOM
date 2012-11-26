@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="examples.hello-dbus-server" version-major="1" version-minor="0">
+   <port name="Service" interface="xcom.IService"></port>
+   <port name="Hello" interface="examples.IHello" required="true"></port>
+</component>

@@ -19,16 +19,15 @@
  */
 
 #include <xCOM.h>
-#include <xCOM/IService.h>
-#include <examples/IHello.h>
-
+#include <assert.h>
 #include <stdio.h>
+
+#include "component.h"
 #include "hello-dbus.h"
 
 static guint bus = 0;
 static Hello *hello;
 static examples_ihello_t *helloImpl = NULL;
-static xc_handle_t helloImportHandle = XC_INVALID_HANDLE;
 
 static gboolean
 on_handle_say (
@@ -38,8 +37,8 @@ on_handle_say (
    gpointer user_data
 ) {
 
-   /* Call the actual IHello.say() method. */
-   helloImpl->say (greeting);
+   /* Call the actual IHello.Say() method. */
+   helloImpl->Say (HelloImportHandle, greeting);
 
    /* Finish the D-Bus method call. */
    hello_complete_say (hello, invocation);
@@ -91,50 +90,49 @@ on_name_lost (
    fprintf (stderr, "lost the name '%s'\n", name);
 }
 
+/* examples.hello-dbus-server component init(). */
 xc_result_t
-hello_server_init (
-   xc_handle_t handle
+examples_hello_dbus_server_init (
+   xc_handle_t importHandle
 ) {
-   fprintf (stderr, "hello-dbus-server: init called!\n");
-   helloImpl = (examples_ihello_t *) xCOM_GetSwitch (helloImportHandle);
+   helloImpl = (examples_ihello_t *) xCOM_GetSwitch (HelloImportHandle);
+   assert (helloImpl != NULL);
    g_type_init ();
    return XC_OK;
 }
 
+/* examples.hello-dbus-server component destroy(). */
 xc_result_t
-hello_server_destroy (
-   xc_handle_t handle
+examples_hello_dbus_server_destroy (
+   xc_handle_t importHandle
 ) {
-   fprintf (stderr, "hello-dbus-server: destroy called!\n");
    return XC_OK;
 }
 
+/* Service port register(). */
 xc_result_t
 service_register (
    xc_handle_t componentHandle,
    xc_handle_t importHandle
 ) {
-   fprintf (stderr, "hello-dbus-server: register called!\n");
    return XC_OK;
 }
 
+/* Service port unregister(). */
 xc_result_t
 service_unregister (
    xc_handle_t componentHandle,
    xc_handle_t importHandle
 ) {
-   fprintf (stderr, "hello-dbus-server: unregister called!\n");
    return XC_OK;
 }
 
+/* xcom.IService.Start implementation for port Service */
 xc_result_t
 service_start (
-   void
+   xc_handle_t importHandle
 ) {
-
    xc_result_t result;
-
-   fprintf (stderr, "service_start()\n");
 
    bus = g_bus_own_name (
       G_BUS_TYPE_SESSION,
@@ -158,9 +156,10 @@ service_start (
    return result;
 }
 
+/* xcom.IService.Stop implementation for port Service */
 xc_result_t
 service_stop (
-   void
+   xc_handle_t importHandle
 ) {
 
    if (bus != 0) {
@@ -168,48 +167,4 @@ service_stop (
    }
    return XC_OK;
 }
-
-const xc_iservice_t service = {
-   XC_INTERFACE_INIT (
-      XC_ISERVICE_NAME,
-      XC_ISERVICE_VERSION_MAJOR,
-      XC_ISERVICE_VERSION_MINOR
-   ),
-   service_start,
-   service_stop
-};
-
-const xc_interface_t helloImport = 
-   XC_INTERFACE_INIT (
-      EXAMPLES_IHELLO_NAME,
-      EXAMPLES_IHELLO_VERSION_MAJOR,
-      EXAMPLES_IHELLO_VERSION_MINOR
-   );
-
-XC_DECLARE_COMPONENT {
-   "hello-dbus-server", "Server-side D-Bus adapter for hello component", 1, 0,
-   hello_server_init,
-   hello_server_destroy,
-   {
-      XC_DECLARE_PROVIDED_PORT (
-         "Service",
-         (xc_interface_t *) &service,
-         sizeof (service),
-         NULL,
-         NULL,
-         service_register,
-         service_unregister
-      ),
-      XC_DECLARE_REQUIRED_PORT (
-         "IHello",
-         (xc_interface_t *) &helloImport,
-         &helloImportHandle,
-         NULL,
-         NULL,
-         NULL,
-         XC_PORTF_LOADTIME
-      ),
-      NULL
-   }
-};
 

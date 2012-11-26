@@ -45,11 +45,11 @@
 #include <getopt.h>
 
 #include <xCOM.h>
-#include <xCOM/IApplication.h>
-#include <xCOM/IService.h>
+#include "component.h"
 
 struct AppThreadData {
-   xc_iapplication_t *impl;
+   xcom_iapplication_t *impl;
+   xc_handle_t importHandle;
    xc_result_t result;
 };
 
@@ -59,10 +59,25 @@ application_run (
 ) {
    struct AppThreadData *appThreadData = app;
 
-   appThreadData->result = appThreadData->impl->run ();
+   appThreadData->result = appThreadData->impl->Start (appThreadData->importHandle);
 
    xCOM_Quit ();
    return NULL;
+}
+
+xc_result_t
+xcom_spawn_init (
+   xc_handle_t componentHandle
+) {
+   componentHandle = componentHandle;
+   return XC_OK;
+}
+xc_result_t
+xcom_spawn_destroy (
+   xc_handle_t componentHandle
+) {
+   componentHandle = componentHandle;
+   return XC_OK;
 }
 
 int
@@ -79,8 +94,8 @@ main (
    bool appStarted = false;
    struct AppThreadData appThreadData;
    unsigned int i, servicesCount=0, appCount=0;
-   xc_iapplication_t *appImpl;
-   xc_iservice_t **serviceImpls = NULL;
+   xcom_iapplication_t *appImpl;
+   xcom_iservice_t **serviceImpls = NULL;
    unsigned int flags = XC_LOADF_NONE;
    xc_result_t result;
 
@@ -126,9 +141,9 @@ main (
       if (result == XC_OK) {
          result = xCOM_QueryInterface (
             XC_INVALID_HANDLE,
-            XC_ISERVICE_NAME,
-            XC_ISERVICE_VERSION_MAJOR,
-            XC_ISERVICE_VERSION_MINOR,
+            XCOM_ISERVICE_NAME,
+            XCOM_ISERVICE_VERSION_MAJOR,
+            XCOM_ISERVICE_VERSION_MINOR,
             NULL,
             NULL,
             XC_QUERYF_NONE,
@@ -138,7 +153,7 @@ main (
          if (result == XC_OK) {
             if (servicesCount > 0) {
                serviceHandles = (xc_handle_t *) malloc (sizeof (*serviceHandles) * servicesCount);
-               serviceImpls = (xc_iservice_t **) malloc (sizeof (*serviceImpls) * servicesCount);
+               serviceImpls = (xcom_iservice_t **) malloc (sizeof (*serviceImpls) * servicesCount);
                if ((serviceHandles != NULL) && (serviceImpls != NULL)) {
                   for (i=0; i<servicesCount; i++) {
                      serviceHandles[i] = XC_INVALID_HANDLE;
@@ -146,7 +161,7 @@ main (
                      if (result == XC_OK) {
                         result = xCOM_Import (serviceHandles[i], (xc_interface_t **) &serviceImpls[i]);
                         if (result == XC_OK) {
-                           result = serviceImpls[i]->start ();
+                           result = serviceImpls[i]->Start (serviceHandles[i]);
                         }
                      }
                   }
@@ -168,9 +183,9 @@ main (
       if (result == XC_OK) {
          result = xCOM_QueryInterface (
             XC_INVALID_HANDLE,
-            XC_IAPPLICATION_NAME,
-            XC_IAPPLICATION_VERSION_MAJOR,
-            XC_IAPPLICATION_VERSION_MINOR,
+            XCOM_IAPPLICATION_NAME,
+            XCOM_IAPPLICATION_VERSION_MAJOR,
+            XCOM_IAPPLICATION_VERSION_MINOR,
             appName,
             NULL,
             XC_QUERYF_NONE,
@@ -189,6 +204,7 @@ main (
                   result = xCOM_Import (applicationHandle, (xc_interface_t **) &appImpl);
                   if (result == XC_OK) {
                      appThreadData.impl = appImpl;
+                     appThreadData.importHandle = applicationHandle;
                      int r = pthread_create (&appThread, NULL, application_run, &appThreadData);
                      if (r == 0) {
                         appStarted = true;
@@ -218,7 +234,7 @@ main (
       /* Stop and unimport services. */
       for (i=0; i<servicesCount; i++) {
          if (serviceHandles[i] != XC_INVALID_HANDLE) {
-            (void) serviceImpls[i]->stop ();
+            (void) serviceImpls[i]->Stop (serviceHandles[i]);
             (void) xCOM_UnImport (serviceHandles[i]);
          }
       }

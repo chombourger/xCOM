@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface name="xcom.IService" version-major="1" version-minor="0">
+   <method name="Start">
+   </method>
+   <method name="Stop">
+   </method>
+</interface>

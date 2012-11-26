@@ -25,7 +25,7 @@ class Argument:
    def __init__ (self, parent):
       self.m_name = '';
       self.m_type = '';
-      self.m_direction = DIRECTION_IN;
+      self.m_direction = Argument.DIRECTION_IN;
       self.setParent (parent);
 
    def name (self):

@@ -19,76 +19,51 @@
  */
 
 #include <xCOM.h>
-#include <examples/IHello.h>
+#include "component.h"
 
 #include <stdio.h>
 
+/* examples.hello component init(). */
 xc_result_t
-hello_say (
-   const char *greeting
+examples_hello_init (
+   xc_handle_t importHandle
 ) {
-   fprintf (stderr, "say('%s') called!\n", greeting);
    return XC_OK;
 }
 
-const examples_ihello_t hello = {
-   XC_INTERFACE_INIT (
-      EXAMPLES_IHELLO_NAME,
-      EXAMPLES_IHELLO_VERSION_MAJOR,
-      EXAMPLES_IHELLO_VERSION_MINOR
-   ),
-   hello_say
-};
+/* examples.hello component destroy(). */
+xc_result_t
+examples_hello_destroy (
+   xc_handle_t importHandle
+) {
+   return XC_OK;
+}
 
+/* Hello port register(). */
 xc_result_t
 hello_register (
    xc_handle_t componentHandle,
    xc_handle_t importHandle
 ) {
-   fprintf (stderr, "hello: register called!\n");
    return XC_OK;
 }
 
+/* Hello port unregister(). */
 xc_result_t
 hello_unregister (
    xc_handle_t componentHandle,
    xc_handle_t importHandle
 ) {
-   fprintf (stderr, "hello: unregister called!\n");
    return XC_OK;
 }
 
+/* examples.IHello.Say implementation for port Hello */
 xc_result_t
-hello_init (
-   xc_handle_t handle
+hello_say (
+   xc_handle_t importHandle,
+   const char * /* in */ arg_greeting
 ) {
-   fprintf (stderr, "hello: init called!\n");
+   printf ("you said: '%s'\n", arg_greeting);
    return XC_OK;
 }
-
-xc_result_t
-hello_destroy (
-   xc_handle_t handle
-) {
-   fprintf (stderr, "hello: destroy called!\n");
-   return XC_OK;
-}
-
-XC_DECLARE_COMPONENT {
-   "hello", "xCOM flavour of helloworld", 1, 0,
-   hello_init,
-   hello_destroy,
-   {
-      XC_DECLARE_PROVIDED_PORT (
-         "Hello",
-         (xc_interface_t *) &hello,
-         sizeof (hello),
-         NULL,
-         NULL,
-         hello_register,
-         hello_unregister
-      ),
-      NULL
-   }
-};
 

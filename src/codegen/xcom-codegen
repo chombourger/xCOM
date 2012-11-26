@@ -64,6 +64,7 @@ def xc_codegen_main ():
                   path = dir + "/" + filename;
                   try:
                      fd = open (path);
+                     print '# Reading ' + path;
                      xmlData = fd.read ();
                      fd.close ();
                      result = parser.parse (path, xmlData);
@@ -72,12 +73,17 @@ def xc_codegen_main ():
                         if found is not None:
                            interfaces.extend (result.interfaces ());
                            break;
+                  except IOError:
+                     found = None
                   except:
-                     found = None;
+                     print "Unexpected error:", sys.exc_info()[0];
+                     raise;
          if found is None:
             print '# unknown interface ' + intf + '!';
             sys.exit (1);
          else:
+            p.setVersionMajor (found.versionMajor());
+            p.setVersionMinor (found.versionMinor());
             found.addReference ();
 
    # Generate code

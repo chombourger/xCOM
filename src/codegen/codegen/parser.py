@@ -112,6 +112,8 @@ class XmlParser:
       comp = component.Component ();
       if attrs.has_key ('name'):
          comp.setName (attrs['name']);
+      if attrs.has_key ('description'):
+         comp.setDescription (attrs['description']);
       if attrs.has_key ('version-major'):
          comp.setVersionMajor (attrs['version-major']);
       if attrs.has_key ('version-minor'):
@@ -146,9 +148,9 @@ class XmlParser:
       if attrs.has_key ('required'):
          required = attrs['required'];
          if required == "true":
-            prt.setProvided (True);
-         elif required == "false":
             prt.setProvided (False);
+         elif required == "false":
+            prt.setProvided (True);
          else:
             self.warn ("'" + required + "' is an invalid value for required attribute (true/false expected)");
       if attrs.has_key ('multiple'):

@@ -28,3 +28,14 @@ def interface (interfaces, name, vmaj, vmin):
       result = i;
       break;
    return result;
+
+def latest_interface (interfaces, name):
+   result = None;
+   max = 0;
+   for i in interfaces:
+      if i.name() == name:
+         version = (i.versionMajor() * 1000) + i.versionMinor();
+         if (version > max):
+            result = i;
+            max = version;
+   return result;

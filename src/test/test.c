@@ -23,8 +23,6 @@
 #endif
 
 #include <xCOM.h>
-#include <xCOM/IApplication.h>
-#include <xCOM/ITest.h>
 
 #ifdef HAVE_STDBOOL_H
 #include <stdbool.h>
@@ -33,6 +31,8 @@
 #ifdef HAVE_STDIO_H
 #include <stdio.h>
 #endif
+
+#include "component.h"
 
 /** Our component handle. */
 xc_handle_t componentHandle = XC_INVALID_HANDLE;
@@ -53,7 +53,7 @@ run_all_single (
    xc_handle_t importHandle;
    unsigned int i, testCount=0;
    unsigned int testLoaded=0, testPassed=0;
-   xc_itest_t *testImpl;
+   xcom_itest_t *testImpl;
    xc_result_t result, testResult;
 
    /* System-wide query for the xcom.ITest interface. */
@@ -74,7 +74,7 @@ run_all_single (
             if (result == XC_OK) {
                /* Test loaded, count and run it. */
                testLoaded ++;
-               testResult = testImpl->run ();
+               testResult = testImpl->Run (importHandle);
                if (testResult == XC_OK) {
                   /* Test passed. */
                   testPassed ++;
@@ -150,6 +150,24 @@ main_menu (
    return result;
 }
 
+/* Application port register(). */
+xc_result_t
+application_register (
+   xc_handle_t componentHandle,
+   xc_handle_t importHandle
+) {
+   return XC_OK;
+}
+
+/* Application port unregister(). */
+xc_result_t
+application_unregister (
+   xc_handle_t componentHandle,
+   xc_handle_t importHandle
+) {
+   return XC_OK;
+}
+
 /**
   * xcom.IApplication entry point. 
   *
@@ -157,75 +175,32 @@ main_menu (
   *
   */
 xc_result_t
-test_run (
-   void
+application_start (
+   xc_handle_t importHandle 
 ) {
    printf (
       "\n"
-      "xCOM Test Driver (built with " XC_ITEST_NAME " interface version %u.%u)\n"
+      "xCOM Test Driver\n"
       "\n"
-      ,
-      XC_ITEST_VERSION_MAJOR,
-      XC_ITEST_VERSION_MINOR
    );
    while (main_menu () == true);
    return XC_OK;
 }
 
-/** Our exported xcom.IApplication interface. */
-const xc_iapplication_t applicationImpl = {
-   XC_INTERFACE_INIT (
-      XC_IAPPLICATION_NAME,
-      XC_IAPPLICATION_VERSION_MAJOR,
-      XC_IAPPLICATION_VERSION_MINOR
-   ),
-   test_run
-};
-
 /** Component init() method. */
 xc_result_t
-test_init (
+xcom_test_init (
    xc_handle_t myComponentHandle
 ) {
    componentHandle = myComponentHandle;
    return XC_OK;
 }
 
-/** The imported xcom.ITest interface. */
-const xc_interface_t testImport =
-   XC_INTERFACE_INIT (
-      XC_ITEST_NAME,
-      XC_ITEST_VERSION_MAJOR,
-      XC_ITEST_VERSION_MINOR
-   );
-
-/** Our component declaration. */
-XC_DECLARE_COMPONENT {
-   "xcom.test", "xCOM Test Driver", 1, 0,
-   test_init, /* init() */
-   NULL,      /* destroy() */
-   {
-      /* Provided ports. */
-      XC_DECLARE_PROVIDED_PORT (
-         "Application",                       /* Port name */
-         (xc_interface_t *) &applicationImpl, /* Export switch */
-         sizeof (applicationImpl),            /* Size of the export switch */
-         NULL,                                /* Port */
-         NULL,                                /* Reserved */
-         NULL,                                /* register() */
-         NULL                                 /* unregister() */
-      ),
-      /* Required ports. */
-      XC_DECLARE_REQUIRED_PORT (
-         "Tests",                             /* Port name */
-         (xc_interface_t *) &testImport,      /* Interface spec */
-         NULL,                                /* Import handle */
-         NULL,                                /* Queried component name */
-         NULL,                                /* Queried port */
-         NULL,                                /* Reserved */
-         XC_PORTF_NONE                        /* Port flags */
-      ),
-      NULL
-   }
-};
+/** Component destroy() method. */
+xc_result_t
+xcom_test_destroy (
+   xc_handle_t myComponentHandle
+) {
+   return XC_OK;
+}
 

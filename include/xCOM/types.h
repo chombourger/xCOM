@@ -23,6 +23,7 @@
 
 #include <xCOM/clist.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __XCOM__
 
@@ -40,7 +41,7 @@
 
 /** xCOM Method Result type. A value greater or equal to zero indicates
   * success, a negative value an error. */
-typedef int xc_result_t;
+typedef int32_t xc_result_t;
 
 /** Success result code. */
 #define XC_OK ((xc_result_t) 0)
@@ -64,7 +65,7 @@ typedef int xc_result_t;
 #define XC_ERR_BUSY ((xc_result_t) 6)
 
 /** Key associated to xCOM objects to avoid passing pointers. */
-typedef unsigned int xc_handle_t;
+typedef uint32_t xc_handle_t;
 
 /** Invalid handle number. */
 #define XC_INVALID_HANDLE ((xc_handle_t)0)

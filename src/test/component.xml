@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="xcom.test" version-major="1" version-minor="0">
+   <port name="Application" interface="xcom.IApplication"></port>
+   <port name="Tests" interface="xcom.ITest" required="true" runtime="true"></port>
+</component>

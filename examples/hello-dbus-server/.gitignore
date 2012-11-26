@@ -1,2 +1,4 @@
+component.c
+component.h
 hello-dbus.c
 hello-dbus.h

@@ -23,6 +23,7 @@ class Component:
       self.m_name = '';
       self.m_vmajor = 0;
       self.m_vminor = 0;
+      self.m_descr = '';
       self.m_ports = [];
 
    def addPort (self, p):
@@ -34,6 +35,9 @@ class Component:
    def name (self):
       return self.m_name;
 
+   def description (self):
+      return self.m_descr;
+   
    def versionMajor (self):
       return self.m_vmajor;
 
@@ -43,6 +47,9 @@ class Component:
    def setName (self, s):
       self.m_name = s;
 
+   def setDescription (self, d):
+      self.m_descr = d;
+      
    def setVersionMajor (self, v):
       self.m_vmajor = int(v);
 
