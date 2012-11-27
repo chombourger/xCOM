@@ -4,6 +4,7 @@ AM_CFLAGS    = @CFLAG_VISIBILITY@
 lib_LTLIBRARIES = libxcom.test.la
 libxcom_test_la_SOURCES = test.c component.c component.h
 libxcom_test_la_LDFLAGS = -version-info 0:0:0
+MOSTLYCLEANFILES = component.c component.h
 
 component.c component.h: component.xml
 	$(srcdir)/../codegen/xcom-codegen -I $(srcdir)/../../interfaces -n component $<
