@@ -7,6 +7,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_SUBDIRS([ext/jansson])
 
 AC_CANONICAL_HOST
 
@@ -62,6 +63,7 @@ fi
 
 AC_CONFIG_FILES([
    Makefile
+   ext/Makefile
    src/Makefile
    src/lib/Makefile
    src/spawn/Makefile
