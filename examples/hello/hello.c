@@ -23,22 +23,6 @@
 
 #include <stdio.h>
 
-/* examples.hello component init(). */
-xc_result_t
-examples_hello_init (
-   xc_handle_t importHandle
-) {
-   return XC_OK;
-}
-
-/* examples.hello component destroy(). */
-xc_result_t
-examples_hello_destroy (
-   xc_handle_t importHandle
-) {
-   return XC_OK;
-}
-
 /* Hello port register(). */
 xc_result_t
 hello_register (

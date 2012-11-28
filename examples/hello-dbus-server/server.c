@@ -101,14 +101,6 @@ examples_hello_dbus_server_init (
    return XC_OK;
 }
 
-/* examples.hello-dbus-server component destroy(). */
-xc_result_t
-examples_hello_dbus_server_destroy (
-   xc_handle_t importHandle
-) {
-   return XC_OK;
-}
-
 /* Service port register(). */
 xc_result_t
 service_register (

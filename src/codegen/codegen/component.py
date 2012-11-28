@@ -25,6 +25,8 @@ class Component:
       self.m_vminor = 0;
       self.m_descr = '';
       self.m_ports = [];
+      self.m_init = True;
+      self.m_destroy = True;
 
    def addPort (self, p):
       self.m_ports.append (p);
@@ -56,3 +58,15 @@ class Component:
    def setVersionMinor (self, v):
       self.m_vminor = int(v);
 
+   def setInit (self, v):
+      self.m_init = v;
+      
+   def init (self):
+      return self.m_init;
+   
+   def setDestroy (self, v):
+      self.m_destroy = v;
+      
+   def destroy (self):
+      return self.m_destroy;
+   

@@ -118,6 +118,18 @@ class XmlParser:
          comp.setVersionMajor (attrs['version-major']);
       if attrs.has_key ('version-minor'):
          comp.setVersionMinor (attrs['version-minor']);
+      if attrs.has_key ('init'):
+         v = attrs['init'];
+         if v == 'true' or v == 'false':
+            comp.setInit (v == True);
+         else:
+            self.warn ('init to be either "true" or "false"');
+      if attrs.has_key ('destroy'):
+         v = attrs['destroy'];
+         if v == 'true' or v == 'false':
+            comp.setDestroy (v == True);
+         else:
+            self.warn ('destroy to be either "true" or "false"');
       self.m_stack.append (comp);
       self.pushState (XmlParser.STATE_COMPONENT);
       return True;

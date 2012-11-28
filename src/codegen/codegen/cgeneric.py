@@ -178,16 +178,18 @@ class CodeGenerator:
                inames[i.name()] = latest;
    
    def write_component_decls (self, comp, file):
-      file.write ('\n/* %s component init(). */\n'%(comp.name()));
-      file.write ('extern xc_result_t\n');
-      file.write ('%s (\n'%(self.name_component_init(comp)));
-      file.write ('   xc_handle_t importHandle\n');
-      file.write (');\n');
-      file.write ('\n/* %s component destroy(). */\n'%(comp.name()));
-      file.write ('extern xc_result_t\n');
-      file.write ('%s (\n'%(self.name_component_destroy(comp)));
-      file.write ('   xc_handle_t importHandle\n');
-      file.write (');\n');
+      if comp.init() == True:
+         file.write ('\n/* %s component init(). */\n'%(comp.name()));
+         file.write ('extern xc_result_t\n');
+         file.write ('%s (\n'%(self.name_component_init(comp)));
+         file.write ('   xc_handle_t importHandle\n');
+         file.write (');\n');
+      if comp.destroy() == True:
+         file.write ('\n/* %s component destroy(). */\n'%(comp.name()));
+         file.write ('extern xc_result_t\n');
+         file.write ('%s (\n'%(self.name_component_destroy(comp)));
+         file.write ('   xc_handle_t importHandle\n');
+         file.write (');\n');
       
    def write_required_port_decls (self, port, file):
       if port.runtime() == False:
@@ -333,8 +335,14 @@ class CodeGenerator:
       file.write ('   "%s",\n'%(comp.description()));
       file.write ('   %u,\n'%(comp.versionMajor()));
       file.write ('   %u,\n'%(comp.versionMinor()));
-      file.write ('   %s,\n'%(self.name_component_init(comp)));
-      file.write ('   %s,\n'%(self.name_component_destroy(comp)));
+      if comp.init() == True:
+         file.write ('   %s,\n'%(self.name_component_init(comp)));
+      else:
+         file.write ('   NULL,\n');
+      if comp.destroy() == True:
+         file.write ('   %s,\n'%(self.name_component_destroy(comp)));
+      else:
+         file.write ('   NULL,\n');
       file.write ('   {\n');
       self.write_provided_ports_init(comp, file);
       self.write_required_ports_init(comp, file);

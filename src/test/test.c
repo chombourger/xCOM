@@ -196,11 +196,3 @@ xcom_test_init (
    return XC_OK;
 }
 
-/** Component destroy() method. */
-xc_result_t
-xcom_test_destroy (
-   xc_handle_t myComponentHandle
-) {
-   return XC_OK;
-}
-
