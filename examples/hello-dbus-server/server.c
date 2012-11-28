@@ -101,24 +101,6 @@ examples_hello_dbus_server_init (
    return XC_OK;
 }
 
-/* Service port register(). */
-xc_result_t
-service_register (
-   xc_handle_t componentHandle,
-   xc_handle_t importHandle
-) {
-   return XC_OK;
-}
-
-/* Service port unregister(). */
-xc_result_t
-service_unregister (
-   xc_handle_t componentHandle,
-   xc_handle_t importHandle
-) {
-   return XC_OK;
-}
-
 /* xcom.IService.Start implementation for port Service */
 xc_result_t
 service_start (

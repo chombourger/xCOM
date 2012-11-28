@@ -150,24 +150,6 @@ main_menu (
    return result;
 }
 
-/* Application port register(). */
-xc_result_t
-application_register (
-   xc_handle_t componentHandle,
-   xc_handle_t importHandle
-) {
-   return XC_OK;
-}
-
-/* Application port unregister(). */
-xc_result_t
-application_unregister (
-   xc_handle_t componentHandle,
-   xc_handle_t importHandle
-) {
-   return XC_OK;
-}
-
 /**
   * xcom.IApplication entry point. 
   *

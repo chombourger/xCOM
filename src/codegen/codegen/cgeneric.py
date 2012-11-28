@@ -197,18 +197,20 @@ class CodeGenerator:
          file.write ('extern xc_handle_t %s;\n\n'%(self.name_port_handle(port)));
          
    def write_provided_port_decls (self, port, file):
-      file.write ('\n/* %s port register(). */\n'%(port.name()));
-      file.write ('extern xc_result_t\n');
-      file.write ('%s (\n'%(self.name_port_register(port)));
-      file.write ('   xc_handle_t componentHandle,\n');
-      file.write ('   xc_handle_t importHandle\n');
-      file.write (');\n');
-      file.write ('\n/* %s port unregister(). */\n'%(port.name()));
-      file.write ('extern xc_result_t\n');
-      file.write ('%s (\n'%(self.name_port_unregister(port)));
-      file.write ('   xc_handle_t componentHandle,\n');
-      file.write ('   xc_handle_t importHandle\n');
-      file.write (');\n');
+      if port.register() == True:
+         file.write ('\n/* %s port register(). */\n'%(port.name()));
+         file.write ('extern xc_result_t\n');
+         file.write ('%s (\n'%(self.name_port_register(port)));
+         file.write ('   xc_handle_t componentHandle,\n');
+         file.write ('   xc_handle_t importHandle\n');
+         file.write (');\n');
+      if port.unregister() == True:
+         file.write ('\n/* %s port unregister(). */\n'%(port.name()));
+         file.write ('extern xc_result_t\n');
+         file.write ('%s (\n'%(self.name_port_unregister(port)));
+         file.write ('   xc_handle_t componentHandle,\n');
+         file.write ('   xc_handle_t importHandle\n');
+         file.write (');\n');
       i = match.interface (self.m_interfaces, port.interface(), port.versionMajor(), port.versionMinor());
       for m in i.methods():
          file.write ('\n/* %s.%s implementation for port %s */\n'%(i.name(),m.name(),port.name()));
@@ -299,8 +301,14 @@ class CodeGenerator:
          file.write ('         sizeof (%s),\n'%(self.name_port(p)));
          file.write ('         NULL,\n'); # FIXME: remove in framework (used to be proto)
          file.write ('         NULL,\n'); # TODO: pass encoded interface spec
-         file.write ('         %s,\n'%(self.name_port_register(p)));
-         file.write ('         %s\n'%(self.name_port_unregister(p)));
+         if p.register() == True:
+            file.write ('         %s,\n'%(self.name_port_register(p)));
+         else:
+            file.write ('         NULL,\n');
+         if p.unregister() == True:
+            file.write ('         %s\n'%(self.name_port_unregister(p)));
+         else:
+            file.write ('         NULL\n');
          file.write ('      ),\n');
          
    def write_required_ports_init (self, comp, file):

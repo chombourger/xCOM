@@ -29,6 +29,8 @@ class Port:
       self.m_runtime = False;
       self.m_component = None;
       self.m_port = None;
+      self.m_register = False;
+      self.m_unregister = False;
       self.setParent (parent);
 
    def name (self):
@@ -84,6 +86,18 @@ class Port:
    
    def setVersionMinor (self, v):
       self.m_versionMinor = int(v);
+
+   def setRegister (self, v):
+      self.m_register = v;
+
+   def register (self):
+      return self.m_register;
+       
+   def setUnregister (self, v):
+      self.m_unregister = v;
+
+   def unregister (self):
+      return self.m_unregister;
        
    def parent (self):
       return self.m_parent;

@@ -121,13 +121,13 @@ class XmlParser:
       if attrs.has_key ('init'):
          v = attrs['init'];
          if v == 'true' or v == 'false':
-            comp.setInit (v == True);
+            comp.setInit (v == 'true');
          else:
             self.warn ('init to be either "true" or "false"');
       if attrs.has_key ('destroy'):
          v = attrs['destroy'];
          if v == 'true' or v == 'false':
-            comp.setDestroy (v == True);
+            comp.setDestroy (v == 'true');
          else:
             self.warn ('destroy to be either "true" or "false"');
       self.m_stack.append (comp);
@@ -181,6 +181,18 @@ class XmlParser:
             prt.setRuntime (False);
          else:
             self.warn ("'" + runtime + "' is an invalid value for runtime attribute (true/false expected)");
+      if attrs.has_key ('register'):
+         v = attrs['register'];
+         if v == 'true' or v == 'false':
+            prt.setRegister (v == 'true');
+         else:
+            self.warn ('register to be either "true" or "false"');
+      if attrs.has_key ('unregister'):
+         v = attrs['unregister'];
+         if v == 'true' or v == 'false':
+            prt.setUnregister (v == 'true');
+         else:
+            self.warn ('unregister to be either "true" or "false"');
       self.m_stack.append (prt);
       self.pushState (XmlParser.STATE_PORT);
       return True;

@@ -23,24 +23,6 @@
 
 #include <stdio.h>
 
-/* Hello port register(). */
-xc_result_t
-hello_register (
-   xc_handle_t componentHandle,
-   xc_handle_t importHandle
-) {
-   return XC_OK;
-}
-
-/* Hello port unregister(). */
-xc_result_t
-hello_unregister (
-   xc_handle_t componentHandle,
-   xc_handle_t importHandle
-) {
-   return XC_OK;
-}
-
 /* examples.IHello.Say implementation for port Hello */
 xc_result_t
 hello_say (
