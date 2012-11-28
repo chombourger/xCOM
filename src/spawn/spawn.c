@@ -65,21 +65,6 @@ application_run (
    return NULL;
 }
 
-xc_result_t
-xcom_spawn_init (
-   xc_handle_t componentHandle
-) {
-   componentHandle = componentHandle;
-   return XC_OK;
-}
-xc_result_t
-xcom_spawn_destroy (
-   xc_handle_t componentHandle
-) {
-   componentHandle = componentHandle;
-   return XC_OK;
-}
-
 int
 main (
    int    argc,

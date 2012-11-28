@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<component name="xcom.spawn" version-major="1" version-minor="0">
+<component name="xcom.spawn" version-major="1" version-minor="0" init="false" destroy="false">
    <port name="Application" interface="xcom.IApplication" required="true" runtime="true"></port>
    <port name="Services" interface="xcom.IService" required="true" runtime="true"></port>
 </component>
