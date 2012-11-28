@@ -190,32 +190,32 @@ class CodeGenerator:
          file.write ('%s (\n'%(self.name_component_destroy(comp)));
          file.write ('   xc_handle_t importHandle\n');
          file.write (');\n');
-      
-   def write_required_port_decls (self, port, file):
-      if port.runtime() == False:
-         file.write ('\n/* Handle for the loadtime port %s */\n'%(port.name()));
-         file.write ('extern xc_handle_t %s;\n\n'%(self.name_port_handle(port)));
          
-   def write_provided_port_decls (self, port, file):
-      if port.register() == True:
-         file.write ('\n/* %s port register(). */\n'%(port.name()));
+   def write_port_decls (self, p, file):
+      if p.register() == True:
+         file.write ('\n/* %s port register(). */\n'%(p.name()));
          file.write ('extern xc_result_t\n');
-         file.write ('%s (\n'%(self.name_port_register(port)));
+         file.write ('%s (\n'%(self.name_port_register(p)));
          file.write ('   xc_handle_t componentHandle,\n');
          file.write ('   xc_handle_t importHandle\n');
          file.write (');\n');
-      if port.unregister() == True:
-         file.write ('\n/* %s port unregister(). */\n'%(port.name()));
+      if p.unregister() == True:
+         file.write ('\n/* %s port unregister(). */\n'%(p.name()));
          file.write ('extern xc_result_t\n');
-         file.write ('%s (\n'%(self.name_port_unregister(port)));
+         file.write ('%s (\n'%(self.name_port_unregister(p)));
          file.write ('   xc_handle_t componentHandle,\n');
          file.write ('   xc_handle_t importHandle\n');
          file.write (');\n');
-      i = match.interface (self.m_interfaces, port.interface(), port.versionMajor(), port.versionMinor());
-      for m in i.methods():
-         file.write ('\n/* %s.%s implementation for port %s */\n'%(i.name(),m.name(),port.name()));
-         file.write ('extern xc_result_t\n');
-         file.write ('%s %s;\n'%(self.name_provided_method(port, m), self.proto_method(m, '')));
+      i = match.interface (self.m_interfaces, p.interface(), p.versionMajor(), p.versionMinor());
+      if p.provided() == True:
+         for m in i.methods():
+            file.write ('\n/* %s.%s implementation for port %s */\n'%(i.name(),m.name(),p.name()));
+            file.write ('extern xc_result_t\n');
+            file.write ('%s %s;\n'%(self.name_provided_method(p, m), self.proto_method(m, '')));
+      else:
+         if p.runtime() == False:
+            file.write ('\n/* Handle for the loadtime port %s */\n'%(p.name()));
+            file.write ('extern xc_handle_t %s;\n\n'%(self.name_port_handle(p)));
                
    def write_header (self):
       filename = self.header_file();
@@ -232,10 +232,7 @@ class CodeGenerator:
       for c in self.m_components:
          self.write_component_decls (c, hfile);
          for p in c.ports():
-            if p.provided() == True:
-               self.write_provided_port_decls (p, hfile);
-            else:
-               self.write_required_port_decls(p, hfile);
+            self.write_port_decls (p, hfile);
       hfile.write ('\n#ifdef __cplusplus\n');
       hfile.write ('}\n');
       hfile.write ('#endif\n\n');         
@@ -333,6 +330,14 @@ class CodeGenerator:
          else:
             file.write ('         "%s", /* port */\n'%(p.port()));
          file.write ('         NULL, /* reserved */\n'); # TODO: pass encoded interface spec
+         if p.register() == True:
+            file.write ('         %s,\n'%(self.name_port_register(p)));
+         else:
+            file.write ('         NULL,\n');
+         if p.unregister() == True:
+            file.write ('         %s,\n'%(self.name_port_unregister(p)));
+         else:
+            file.write ('         NULL,\n');
          file.write ('         %s /* flags */\n'%(self.port_flags(p)));
          file.write ('      ),\n');
          

@@ -243,21 +243,23 @@ struct __xc_component_decl__ {
   * @param c name of the queried component or NULL
   * @param p name of the queried port or NULL
   * @param r reserved for future use, pass NULL
+  * @param reg register() method for this port
+  * @param unreg unregister() method for this port
   * @param f flags for this port (see XC_PORTF_ defines)
   *
   */
-#define XC_DECLARE_REQUIRED_PORT(n,i,h,c,p,r,f)        \
-   {                                                   \
-      n,                     /* name */                \
-      i,                     /* interfacePtr */        \
-      0,                     /* interfaceSize */       \
-      c,                     /* component */           \
-      p,                     /* port */                \
-      r,                     /* reserved */            \
-      XC_PORTF_REQUIRED | f, /* flags */               \
-      NULL,                  /* onRegister */          \
-      NULL,                  /* onUnRegister */        \
-      h                      /* importHandlePtr */     \
+#define XC_DECLARE_REQUIRED_PORT(n,i,h,c,p,r,reg,unreg,f) \
+   {                                                      \
+      n,                     /* name */                   \
+      i,                     /* interfacePtr */           \
+      0,                     /* interfaceSize */          \
+      c,                     /* component */              \
+      p,                     /* port */                   \
+      r,                     /* reserved */               \
+      XC_PORTF_REQUIRED | f, /* flags */                  \
+      reg,                   /* onRegister */             \
+      unreg,                 /* onUnRegister */           \
+      h                      /* importHandlePtr */        \
    }
 
 /**
