@@ -142,3 +142,42 @@ service_stop (
    return XC_OK;
 }
 
+/* Service port register(). */
+xc_result_t
+service_register (
+   xc_handle_t componentHandle,
+   xc_handle_t importHandle
+) {
+   printf ("service_register %u %u\n", componentHandle, importHandle);
+   return XC_OK;
+}
+
+/* Service port unregister(). */
+xc_result_t
+service_unregister (
+   xc_handle_t componentHandle,
+   xc_handle_t importHandle
+) {
+   printf ("service_unregister %u %u\n", componentHandle, importHandle);
+   return XC_OK;
+}
+
+/* Hello port register(). */
+xc_result_t
+hello_register (
+   xc_handle_t componentHandle,
+   xc_handle_t importHandle
+) {
+   printf ("hello_register %u %u\n", componentHandle, importHandle);
+   return XC_OK;
+}
+
+/* Hello port unregister(). */
+xc_result_t
+hello_unregister (
+   xc_handle_t componentHandle,
+   xc_handle_t importHandle
+) {
+   printf ("hello_unregister %u %u\n", componentHandle, importHandle);
+   return XC_OK;
+}

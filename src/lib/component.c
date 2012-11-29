@@ -155,7 +155,7 @@ component_new (
       componentPtr->bundlePtr = bundlePtr;
       componentPtr->handle = NULL;
       componentPtr->state = COMP_STATE_NULL;
-      componentPtr->references = 1;
+      componentPtr->references = 0;
       componentPtr->portsCount = 0;
       componentPtr->ports = NULL;
       XC_CLIST_INIT (&componentPtr->imports);
@@ -375,7 +375,6 @@ component_introspect (
                libPath = NULL;
                /* Dump component meta-data to the cache. */
                (void) cache_create (componentPtr, filename);
-               component_unref (componentPtr);
             }
          }
       }
@@ -620,7 +619,7 @@ component_loadtime_imports (
 
    unsigned int i;
    port_t *portPtr;
-   xc_result_t result;
+   xc_result_t result = XC_OK;
 
    TRACE3 (("called with componentPtr=%p", componentPtr));
    assert (componentPtr != NULL);
@@ -638,8 +637,6 @@ component_loadtime_imports (
          result = component_loadtime_import (componentPtr, portPtr);
       }
    }
-
-   result = XC_OK;
 
    TRACE3 (("exiting with result=%d", result));
    return result;
@@ -664,8 +661,9 @@ component_loadtime_import (
       *portPtr->importHandlePtr = XC_INVALID_HANDLE;
    }
 
-   result = xCOM_QueryInterface (
+   result = query_new (
       componentPtr->id,
+      portPtr->name,
       portPtr->interfaceSpec.name,
       portPtr->interfaceSpec.vmajor,
       portPtr->interfaceSpec.vminor,
@@ -766,6 +764,13 @@ component_init (
          componentPtr->vmajor, componentPtr->vminor,
          componentPtr->descr
       );
+   }
+   else {
+      TRACE1 ((
+         "initialization failed (%d), closing imports of %s",
+         result, componentPtr->name
+      ));
+      component_close_imports (componentPtr);
    }
  
    pthread_mutex_unlock (&componentPtr->lock);

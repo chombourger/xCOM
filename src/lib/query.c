@@ -121,7 +121,12 @@ query_get_candidates (
       providerPtr = (port_t *) XC_CLIST_HEAD (&listPtr->ports);
       while (!XC_CLIST_END (&listPtr->ports, providerPtr)) {
          if (query_match_provider (queryPtr, providerPtr)) {
-            importPtr = import_new (queryPtr->queryHandle, queryPtr->componentHandle, providerPtr);
+            importPtr = import_new (
+               queryPtr->queryHandle,
+               queryPtr->componentHandle,
+               queryPtr->clientPortName,
+               providerPtr
+            );
             if (importPtr != NULL) {
                result = query_add_import (queryPtr, importPtr);
                if (result == XC_OK) {
@@ -176,6 +181,7 @@ query_destroy (
 xc_result_t
 query_new (
    xc_handle_t componentHandle,
+   const char *portName,
    const char *interfaceName,
    unsigned int interfaceMajorVersion,
    unsigned int interfaceMinorVersion,
@@ -190,14 +196,15 @@ query_new (
    xc_result_t result = XC_OK;
 
    TRACE3 ((
-      "called with componentHandle=%u, interfaceName='%s', interfaceMajorVersion=%u, "
-      "interfaceMinorVersion=%u, queriedComponentName='%s', queriedPortName='%s', "
-      "queryFlags=0x%x, queryHandlePtr=%p, matchCountPtr=%p", componentHandle,
-      interfaceName, interfaceMajorVersion, interfaceMinorVersion, queriedComponentName,
-      queriedPortName, queryFlags, queryHandlePtr, matchCountPtr
+      "called with componentHandle=%u, portName='%s', interfaceName='%s', "
+      "interfaceMajorVersion=%u, interfaceMinorVersion=%u, queriedComponentName='%s', "
+      "queriedPortName='%s', queryFlags=0x%x, queryHandlePtr=%p, matchCountPtr=%p",
+      componentHandle, portName, interfaceName, interfaceMajorVersion, interfaceMinorVersion,
+      queriedComponentName, queriedPortName, queryFlags, queryHandlePtr, matchCountPtr
    ));
    assert (interfaceName != NULL);
    assert (queryHandlePtr != NULL);
+   pthread_mutex_lock (&lock);
 
    queryPtr = (query_t *) malloc (sizeof (*queryPtr));
    if (queryPtr != NULL) {
@@ -209,6 +216,7 @@ query_new (
       queryPtr->firstImportPtr = NULL;
       queryPtr->lastImportPtr = NULL;
       queryPtr->importPtr = NULL;
+      queryPtr->clientPortName = NULL;
 
       XC_CLIST_INIT (&queryPtr->imports);
       queryPtr->componentHandle = componentHandle;
@@ -224,11 +232,22 @@ query_new (
          }
       }
 
+      /* Copy client port name. */
+      if (portName != NULL) {
+         queryPtr->clientPortName = strdup (portName);
+         if (queryPtr->clientPortName == NULL) {
+            TRACE1 (("Out of memory!"));
+            result = XC_ERR_NOMEM;
+         }
+      }
+
       /* Copy interface name. */
-      queryPtr->queriedInterface.name = strdup (interfaceName);
-      if (queryPtr->queriedInterface.name == NULL) {
-         TRACE1 (("Out of memory!"));
-         result = XC_ERR_NOMEM;
+      if (result == XC_OK) {
+         queryPtr->queriedInterface.name = strdup (interfaceName);
+         if (queryPtr->queriedInterface.name == NULL) {
+            TRACE1 (("Out of memory!"));
+            result = XC_ERR_NOMEM;
+         }
       }
 
       /* Copy queried component name if specified. */
@@ -270,6 +289,7 @@ query_new (
       }
    }
 
+   pthread_mutex_unlock (&lock);
    TRACE3 (("exiting with result=%d", result));
    return result;
 }
@@ -295,6 +315,7 @@ query_free (
    free (queryPtr->queriedPort);
    free (queryPtr->queriedComponent);
    free ((void *) queryPtr->queriedInterface.name);
+   free (queryPtr->clientPortName);
 
    if (queryPtr->componentPtr != NULL) {
       component_unref (queryPtr->componentPtr);
@@ -340,7 +361,7 @@ xCOM_QueryInterface (
    }
    else {
       result = query_new (
-         componentHandle, interfaceName, interfaceMajorVersion, interfaceMinorVersion,
+         componentHandle, NULL, interfaceName, interfaceMajorVersion, interfaceMinorVersion,
          queriedComponentName, queriedPortName, queryFlags, queryHandlePtr, matchCountPtr
       );
    }
@@ -390,8 +411,8 @@ xCOM_QueryNext (
    xc_result_t result;
 
    TRACE3 (("called with queryHandle=%u, importHandlePtr=%p", queryHandle, importHandlePtr));
-
    pthread_mutex_lock (&lock);
+
    queryPtr = (query_t *) handle_dir_get (queryHandles, queryHandle);
    if (queryPtr != NULL) {
       result = query_next (queryPtr, importHandlePtr);
@@ -401,7 +422,6 @@ xCOM_QueryNext (
    }
 
    pthread_mutex_unlock (&lock);
-
    TRACE3 (("exiting with result=%d", result));
    return result;
 } 
@@ -462,6 +482,7 @@ xCOM_QueryPort (
             if (XC_PORTF_IS_REQUIRED (portPtr->flags) && XC_PORTF_IS_RUNTIME (portPtr->flags)) {
                result = query_new (
                   componentHandle,
+                  portPtr->name,
                   portPtr->interfaceSpec.name,
                   portPtr->interfaceSpec.vmajor,
                   portPtr->interfaceSpec.vminor,

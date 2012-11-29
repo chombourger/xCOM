@@ -86,13 +86,16 @@ import_t *
 import_new (
    xc_handle_t queryHandle,
    xc_handle_t clientHandle,
+   const char *clientPortName,
    port_t *providerPtr
 ) {
+
    import_t *importPtr;
+   xc_result_t result = XC_OK;
 
    TRACE3 ((
-      "called with queryHandle=%u, clientHandle=%u, providerPtr=%p",
-      queryHandle, clientHandle, providerPtr
+      "called with queryHandle=%u, clientHandle=%u, clientPortName='%s', providerPtr=%p",
+      queryHandle, clientHandle, clientPortName, providerPtr
    ));
    assert (providerPtr != NULL);
 
@@ -109,42 +112,143 @@ import_new (
       importPtr->clientHandle = clientHandle;
       importPtr->portName = NULL;
       importPtr->interfacePtr = NULL;
+      importPtr->clientPortName = NULL;
+
       if (providerPtr->port != NULL) {
          importPtr->portName = strdup (providerPtr->port);
          if (importPtr->portName == NULL) {
             TRACE1 (("Out of memory!"));
-            import_free (importPtr);
-            importPtr = NULL;
+            result = XC_ERR_NOMEM;
          }
+      }
+
+      if ((result == XC_OK) && (clientPortName != NULL)) {
+         importPtr->clientPortName = strdup (clientPortName);
+         if (importPtr->clientPortName == NULL) {
+            TRACE1 (("Out of memory!"));
+            result = XC_ERR_NOMEM;
+         }
+      }
+
+      /** Get a reference to the server component. */
+      if ((result == XC_OK) && (importPtr->serverHandle != XC_INVALID_HANDLE)) {
+         importPtr->serverComponentPtr = component_ref (importPtr->serverHandle);
+         if (importPtr->serverComponentPtr == NULL) {
+            TRACE1 (("Invalid server component handle #%u", importPtr->serverHandle));
+            result = XC_ERR_NOENT;
+         }
+      }
+
+      /** Get a handle for this new import. */ 
+      if (result == XC_OK) {
+         import_module_lock ();
+         importPtr->importHandle = handle_dir_push (importHandles, importPtr);
+         if (importPtr->importHandle == XC_INVALID_HANDLE) {
+            TRACE1 (("Out of memory or handles!"));
+            result = XC_ERR_NOMEM;
+         }
+         import_module_unlock ();
+      }
+
+      if (result != XC_OK) {
+         import_free (importPtr);
+         importPtr = NULL;
       }
    }
    else {
       TRACE1 (("Out of memory!"));
    }
 
-   /** Get a reference to the server component. */
-   if (importPtr->serverHandle != XC_INVALID_HANDLE) {
-      importPtr->serverComponentPtr = component_ref (importPtr->serverHandle);
-      if (importPtr->serverComponentPtr == NULL) {
-         import_free (importPtr);
-         importPtr = NULL;
-      }
-   }
-
-   /** Get a handle for this new import. */ 
-   if (importPtr != NULL) {
-      import_module_lock ();
-      importPtr->importHandle = handle_dir_push (importHandles, importPtr);
-      if (importPtr->importHandle == XC_INVALID_HANDLE) {
-         TRACE1 (("Out of memory or handles!"));
-         import_free (importPtr);
-         importPtr = NULL;
-      }
-      import_module_unlock ();
-   }
-
    TRACE3 (("exiting with result=%p", importPtr));
    return importPtr;
+}
+
+static void
+unregister_from_server (
+   import_t *importPtr
+) {
+
+   TRACE3 (("called with importPtr=%p", importPtr));
+   assert (importPtr != NULL);
+   assert (importPtr->state == IMPORT_STATE_REGISTERED_TO_SERVER);
+
+   (void) component_unregister (
+      importPtr->serverComponentPtr,
+      importPtr->serverPortPtr,
+      importPtr->importHandle
+   );
+   importPtr->state = IMPORT_STATE_UNREGISTERED;
+
+   TRACE3 (("exiting"));
+}
+
+static void
+unregister_from_client (
+   import_t *importPtr
+) {
+
+   component_t *clientComponentPtr;
+   port_t *clientPortPtr;
+   xc_result_t result;
+
+   TRACE3 (("called with importPtr=%p", importPtr));
+   assert (importPtr != NULL);
+   assert (importPtr->state == IMPORT_STATE_REGISTERED_TO_CLIENT);
+
+   if (importPtr->clientPortName != NULL) {
+      /* Register import to client component. */
+      clientComponentPtr = component_ref (importPtr->clientHandle);
+      if (clientComponentPtr != NULL) {
+         clientPortPtr = component_ref_port (clientComponentPtr, importPtr->clientPortName);
+         if (clientPortPtr != NULL) {
+            result = component_unregister (
+               clientComponentPtr,
+               clientPortPtr,
+               importPtr->importHandle
+            );
+            component_unref_port (clientComponentPtr, clientPortPtr);
+            clientPortPtr = NULL;
+         }
+         else {
+            TRACE1 (("lookup of port '%s' failed", importPtr->clientPortName));
+            result = XC_ERR_NOENT;
+         }
+         component_unref (clientComponentPtr);
+         clientComponentPtr = NULL;
+      }
+      else {
+         TRACE1 (("lookup of client component #%u failed", importPtr->clientHandle));
+         result = XC_ERR_NOENT;
+      }
+   }
+   else {
+      result = XC_OK;
+   }
+
+   if (result == XC_OK) {
+      importPtr->state = IMPORT_STATE_REGISTERED_TO_SERVER;
+   }
+
+   TRACE3 (("exiting"));
+}
+
+static void
+import_unregister (
+   import_t *importPtr
+) {
+
+   TRACE3 (("called with importPtr=%p", importPtr));
+   assert (importPtr != NULL);
+
+   if (importPtr->state == IMPORT_STATE_REGISTERED_TO_CLIENT) {
+      unregister_from_client (importPtr);
+   }
+
+   if (importPtr->state == IMPORT_STATE_REGISTERED_TO_SERVER) {
+      unregister_from_server (importPtr);
+   }
+
+   TRACE3 (("exiting"));
 }
 
 void
@@ -156,30 +260,139 @@ import_free (
    assert (importPtr != NULL);
    import_module_lock ();
 
-   if (importPtr->state == IMPORT_STATE_REGISTERED) {
-      (void) component_unregister (
-         importPtr->serverComponentPtr,
-         importPtr->serverPortPtr,
-         importPtr->importHandle
-      );
+   if (importPtr->state == IMPORT_STATE_OPENED) {
+      TRACE4 (("freeing switch %p", importPtr->interfacePtr));
+      free (importPtr->interfacePtr);
+      importPtr->interfacePtr = NULL;
+      importPtr->state = IMPORT_STATE_REGISTERED_TO_CLIENT;
    }
 
+   import_unregister (importPtr);
+
    if (importPtr->importHandle != XC_INVALID_HANDLE) {
+      TRACE4 (("deleting import handle #%u", importPtr->importHandle));
       handle_dir_remove (importHandles, importPtr->importHandle);
    }
 
    if (importPtr->serverComponentPtr != NULL) {
       component_unref (importPtr->serverComponentPtr);
+      importPtr->serverComponentPtr = NULL;
    }
 
+   free (importPtr->clientPortName);
    free (importPtr->portName);
-   free (importPtr->interfacePtr);
    free (importPtr);
 
    import_module_unlock ();
    TRACE3 (("exiting"));
 }
 
+static xc_result_t
+register_to_server (
+   import_t *importPtr
+) {
+
+   xc_result_t result;
+
+   TRACE3 (("called with importPtr=%p", importPtr));
+   assert (importPtr != NULL);
+   assert (importPtr->state == IMPORT_STATE_UNREGISTERED);
+
+   /* Register import to server component. */
+   result = component_register (
+      importPtr->serverComponentPtr,
+      importPtr->serverPortPtr,
+      importPtr->importHandle
+   );
+   if (result == XC_OK) {
+      importPtr->state = IMPORT_STATE_REGISTERED_TO_SERVER;
+   }
+
+   TRACE3 (("exiting with result=%d", result));
+   return result;
+}
+
+static xc_result_t
+register_to_client (
+   import_t *importPtr
+) {
+
+   component_t *clientComponentPtr;
+   port_t *clientPortPtr;
+   xc_result_t result;
+
+   TRACE3 (("called with importPtr=%p", importPtr));
+   assert (importPtr != NULL);
+   assert (importPtr->state == IMPORT_STATE_REGISTERED_TO_SERVER);
+
+   if (importPtr->clientPortName != NULL) {
+      /* Register import to client component. */
+      TRACE4 ((
+         "need to register() on component #%u port '%s'",
+          importPtr->clientHandle, importPtr->clientPortName
+      ));
+      clientComponentPtr = component_ref (importPtr->clientHandle);
+      if (clientComponentPtr != NULL) {
+         clientPortPtr = component_ref_port (clientComponentPtr, importPtr->clientPortName);
+         if (clientPortPtr != NULL) {
+            result = component_register (
+               clientComponentPtr,
+               clientPortPtr,
+               importPtr->importHandle
+            );
+            TRACE4 ((
+               "register() on component #%u port '%s' returned %d",
+               importPtr->clientHandle, importPtr->clientPortName, result
+            ));
+            component_unref_port (clientComponentPtr, clientPortPtr);
+            clientPortPtr = NULL;
+         }
+         else {
+            TRACE1 (("lookup of port '%s' failed", importPtr->clientPortName));
+            result = XC_ERR_NOENT;
+         }
+         component_unref (clientComponentPtr);
+         clientComponentPtr = NULL;
+      }
+      else {
+         TRACE1 (("lookup of client component #%u failed", importPtr->clientHandle));
+         result = XC_ERR_NOENT;
+      }
+   }
+   else {
+      result = XC_OK;
+   }
+
+   if (result == XC_OK) {
+      importPtr->state = IMPORT_STATE_REGISTERED_TO_CLIENT;
+   }
+
+   TRACE3 (("exiting with result=%d", result));
+   return result;
+}
+
+static xc_result_t
+import_register (
+   import_t *importPtr
+) {
+
+   xc_result_t result;
+
+   TRACE3 (("called with importPtr=%p", importPtr));
+   assert (importPtr != NULL);
+   assert (importPtr->state == IMPORT_STATE_UNREGISTERED);
+
+   /* Register import to server component. */
+   result = register_to_server (importPtr);
+   if (result == XC_OK) {
+      /* Register import to client component. */
+      result = register_to_client (importPtr);
+   }
+
+   TRACE3 (("exiting with result=%d", result));
+   return result;
+}
+ 
 xc_result_t
 import_open (
    xc_handle_t importHandle,
@@ -207,19 +420,13 @@ import_open (
      if (importPtr->state == IMPORT_STATE_UNREGISTERED) {
 
          /* Register import. */
-         importPtr->state = IMPORT_STATE_REGISTERING;
-         result = component_register (importPtr->serverComponentPtr, importPtr->serverPortPtr, importHandle);
-
-         /* Initialize server component */
-         if (result == XC_OK) {
-            importPtr->state = IMPORT_STATE_REGISTERED;
-         }
-
+         result = import_register (importPtr);
          if (result == XC_OK) {
             /* Allocate and provide client switch. */
             importPtr->interfacePtr = malloc (importPtr->serverPortPtr->interfaceSize);
             if (importPtr->interfacePtr != NULL) {
                memcpy (importPtr->interfacePtr, importPtr->serverPortPtr->interfacePtr, importPtr->serverPortPtr->interfaceSize);
+               importPtr->state = IMPORT_STATE_OPENED;
                if (interfacePtr != NULL) {
                   *interfacePtr = importPtr->interfacePtr;
                }
@@ -232,6 +439,12 @@ import_open (
 
          if (result == XC_OK) {
             result = component_init (importPtr->serverComponentPtr);
+         }
+
+         if (result != XC_OK) {
+            TRACE1 (("failed to open import #%u, deleting.", importHandle));
+            import_close (importPtr);
+            importPtr = NULL;
          }
       }
       else {
@@ -247,6 +460,26 @@ import_open (
    import_module_unlock ();
    TRACE3 (("exiting with result=%d", result));
    return result;
+}
+
+void
+import_close (
+   import_t *importPtr
+) {
+
+   component_t *clientComponentPtr;
+
+   TRACE3 (("called with importPtr=%p", importPtr));
+   assert (importPtr != NULL);
+
+   clientComponentPtr = component_ref (importPtr->clientHandle);
+   if (clientComponentPtr != NULL) {
+      component_remove_import (clientComponentPtr, importPtr);
+      component_unref (clientComponentPtr);
+   }
+   import_free (importPtr);
+
+   TRACE3 (("exiting"));
 }
 
 xc_result_t
@@ -289,11 +522,7 @@ xCOM_UnImport (
       import_module_lock ();
       importPtr = handle_dir_get (importHandles, importHandle);
       if (importPtr != NULL) {
-         component_t *clientComponentPtr;
-         clientComponentPtr = component_ref (importPtr->clientHandle);
-         component_remove_import (clientComponentPtr, importPtr);
-         component_unref (clientComponentPtr);
-         import_free (importPtr);
+         import_close (importPtr);
          result = XC_OK;
       }
       else {
@@ -373,7 +602,7 @@ xCOM_GetSwitch (
    import_module_lock ();
 
    importPtr = handle_dir_get (importHandles, importHandle);
-   if ((importPtr != NULL) && (importPtr->state = IMPORT_STATE_REGISTERED)) {
+   if ((importPtr != NULL) && (importPtr->state = IMPORT_STATE_OPENED)) {
       switchPtr = importPtr->interfacePtr;
    }
    else {
@@ -399,7 +628,7 @@ xCOM_GetNextImport (
    import_module_lock ();
 
    importPtr = handle_dir_get (importHandles, importHandle);
-   if ((importPtr != NULL) && (importPtr->state = IMPORT_STATE_REGISTERED)) {
+   if ((importPtr != NULL) && (importPtr->state = IMPORT_STATE_OPENED)) {
       importPtr = importPtr->nextImportPtr;
       if (importPtr != NULL) {
          nextHandle = importPtr->importHandle;

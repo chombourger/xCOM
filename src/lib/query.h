@@ -44,6 +44,7 @@ extern "C" {
 typedef struct {
    xc_handle_t queryHandle;         /**< Our very own query handle */
    xc_handle_t componentHandle;     /**< Handle of the component issuing the query. */
+   char *clientPortName;            /**< Name of the port from the client component. */
    component_t *componentPtr;       /**< Pointer to the component issuing the query. */
    xc_interface_t queriedInterface; /**< Queried interface description. */
    char *queriedComponent;          /**< Component name if query against a specific server. */
@@ -69,6 +70,7 @@ query_destroy (
   * Create a new query.
   *
   * @param componentHandle handle of the component issuing the query.
+  * @param clientPortName name of the port from the client component.
   * @param interface name of the queried interface.
   * @param interfaceMajorVersion major version number to be matched.
   * @param interfaceMinorVersion minor version number to be matched.
@@ -84,6 +86,7 @@ query_destroy (
 xc_result_t
 query_new (
    xc_handle_t componentHandle,
+   const char *clientPortName,
    const char *interfaceName,
    unsigned int interfaceMajorVersion,
    unsigned int interfaceMinorVersion,

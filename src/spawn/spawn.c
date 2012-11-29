@@ -141,12 +141,19 @@ main (
                serviceImpls = (xcom_iservice_t **) malloc (sizeof (*serviceImpls) * servicesCount);
                if ((serviceHandles != NULL) && (serviceImpls != NULL)) {
                   for (i=0; i<servicesCount; i++) {
+                     xc_handle_t serviceHandle;
                      serviceHandles[i] = XC_INVALID_HANDLE;
-                     result = xCOM_QueryNext (queryHandle, &serviceHandles[i]);
+                     result = xCOM_QueryNext (queryHandle, &serviceHandle);
                      if (result == XC_OK) {
-                        result = xCOM_Import (serviceHandles[i], (xc_interface_t **) &serviceImpls[i]);
+                        result = xCOM_Import (serviceHandle, (xc_interface_t **) &serviceImpls[i]);
                         if (result == XC_OK) {
+                           serviceHandles[i] = serviceHandle;
                            result = serviceImpls[i]->Start (serviceHandles[i]);
+                        }
+                        else {
+                           /* FIXME print the name of the service we failed to load. */
+                           fprintf (stderr, "warning: failed to load service\n");
+                           result = XC_OK;
                         }
                      }
                   }
@@ -214,6 +221,7 @@ main (
          result = pthread_join (appThread, NULL);
          assert (result == 0);
          result = appThreadData.result;
+         (void) xCOM_UnImport (applicationHandle);
       }
 
       /* Stop and unimport services. */

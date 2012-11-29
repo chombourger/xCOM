@@ -35,6 +35,7 @@ struct Import {
    xc_handle_t serverHandle;        /**< Server component handle. */
    component_t *serverComponentPtr; /**< Pointer to server component. */
    xc_handle_t clientHandle;        /**< Client component handle. */
+   char *clientPortName;            /**< Name of the port from the client component. */
    port_t *serverPortPtr;
    xc_interface_t *interfacePtr;
    char *portName;
@@ -54,6 +55,7 @@ import_t *
 import_new (
    xc_handle_t queryHandle,
    xc_handle_t clientHandle,
+   const char *clientPortName,
    port_t *providerPtr
 );
 
@@ -89,6 +91,11 @@ xc_result_t
 import_open (
    xc_handle_t importHandle,
    xc_interface_t **interfacePtr
+);
+
+void
+import_close (
+   import_t *importPtr
 );
 
 void
