@@ -328,7 +328,6 @@ component_introspect (
 
    libPath = (char *) malloc (PATH_MAX);
    if (libPath != NULL) {
-      /* TODO try from cache first */
       sprintf (libPath, "%s/" CODE_FOLDER "/" XC_HOST "/%s", bundlePtr->path, filename);
       handle = dlopen (libPath, RTLD_LAZY);
       if (handle != NULL) {

@@ -130,7 +130,6 @@ query_get_candidates (
             if (importPtr != NULL) {
                result = query_add_import (queryPtr, importPtr);
                if (result == XC_OK) {
-                  component_add_import (queryPtr->componentPtr, importPtr);
                   count ++;
                }
                else {
@@ -542,7 +541,8 @@ query_add_import (
       queryPtr->lastImportPtr = importPtr;
    }
 
-   /* TODO add import to client component */
+   /* Add import to client component */
+   component_add_import (queryPtr->componentPtr, importPtr);
    result = XC_OK;
 
    TRACE3 (("exiting with result=%d", result));
