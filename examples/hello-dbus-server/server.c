@@ -38,7 +38,7 @@ on_handle_say (
 ) {
 
    /* Call the actual IHello.Say() method. */
-   helloImpl->Say (HelloImportHandle, greeting, NULL, NULL);
+   helloImpl->Say (HelloImportHandle, greeting, NULL, NULL, NULL);
 
    /* Finish the D-Bus method call. */
    hello_complete_say (hello, invocation);
@@ -110,6 +110,11 @@ service_start (
       xc_result_t result,
       void *user_data
    ),
+   void (* Start_error) (
+      xc_handle_t importHandle,
+      xc_result_t result,
+      void *user_data
+   ),
    void *user_data
 ) {
    xc_result_t result;
@@ -128,14 +133,17 @@ service_start (
 
    if (bus != 0) {
       result = XC_OK;
+      if (Start_result != NULL) {
+         Start_result (importHandle, result, user_data);
+      }
    }
    else {
       result = XC_ERR_NOMEM;
+      if (Start_error != NULL) {
+         Start_error (importHandle, result, user_data);
+      }
    }
 
-   if (Start_result != NULL) {
-      Start_result (importHandle, result, user_data);
-   }
    return result;
 }
 
@@ -144,6 +152,11 @@ xc_result_t
 service_stop (
    xc_handle_t importHandle,
    void (* Stop_result) (
+      xc_handle_t importHandle,
+      xc_result_t result,
+      void *user_data
+   ),
+   void (* Stop_error) (
       xc_handle_t importHandle,
       xc_result_t result,
       void *user_data

@@ -97,7 +97,7 @@ run_all_single (
             if (result == XC_OK) {
                /* Test loaded, count and run it. */
                testLoaded ++;
-               result = testImpl->Run (importHandle, test_run_result, &testData);
+               result = testImpl->Run (importHandle, test_run_result, test_run_result, &testData);
                if (result == XC_OK) {
                   sem_wait (&testData.waitSem);
                   if (testData.testResult == XC_OK) {
@@ -191,6 +191,11 @@ application_start (
       xc_result_t result,
       void *user_data
    ),
+   void (* Start_error) (
+      xc_handle_t importHandle,
+      xc_result_t result,
+      void *user_data
+   ),
    void *user_data
 ) {
    printf (
@@ -199,9 +204,11 @@ application_start (
       "\n"
    );
    while (main_menu () == true);
+
    if (Start_result != NULL) {
       Start_result (importHandle, XC_OK, user_data);
    }
+
    return XC_OK;
 }
 

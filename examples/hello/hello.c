@@ -33,6 +33,11 @@ hello_say (
       xc_result_t result,
       void *user_data
    ),
+   void (* Say_error) (
+      xc_handle_t importHandle,
+      xc_result_t result,
+      void *user_data
+   ),
    void *user_data
 ) {
    printf ("you said: '%s'\n", arg_greeting);

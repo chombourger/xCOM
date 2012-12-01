@@ -56,9 +56,19 @@ service_result (
 ) {
    sem_t *waitSem = user_data;
    importHandle = importHandle;
-   if (result != XC_OK) {
-      fprintf (stderr, "warning: service failed to start/stop\n");
-   }
+   result = result;
+   sem_post (waitSem);
+}
+
+static void
+service_error (
+   xc_handle_t importHandle,
+   xc_result_t result,
+   void *user_data
+) {
+   sem_t *waitSem = user_data;
+   importHandle = importHandle;
+   fprintf (stderr, "warning: service failed to start/stop (%d)\n", result);
    sem_post (waitSem);
 }
 
@@ -157,7 +167,7 @@ main (
                         result = xCOM_Import (serviceHandle, (xc_interface_t **) &serviceImpls[i]);
                         if (result == XC_OK) {
                            serviceHandles[i] = serviceHandle;
-                           result = serviceImpls[i]->Start (serviceHandles[i], service_result, &serviceSem);
+                           result = serviceImpls[i]->Start (serviceHandles[i], service_result, service_error, &serviceSem);
                            if (result == XC_OK) {
                               sem_wait (&serviceSem);
                            }
@@ -207,7 +217,7 @@ main (
                if (result == XC_OK) {
                   result = xCOM_Import (applicationHandle, (xc_interface_t **) &appImpl);
                   if (result == XC_OK) {
-                     (void) appImpl->Start (applicationHandle, application_start_result, NULL);
+                     (void) appImpl->Start (applicationHandle, application_start_result, application_start_result, NULL);
                      appImported = true;
                      break;
                   }
@@ -229,7 +239,7 @@ main (
       /* Stop and unimport services. */
       for (i=0; i<servicesCount; i++) {
          if (serviceHandles[i] != XC_INVALID_HANDLE) {
-            result = serviceImpls[i]->Stop (serviceHandles[i], service_result, &serviceSem);
+            result = serviceImpls[i]->Stop (serviceHandles[i], service_result, service_error, &serviceSem);
             if (result == XC_OK) {
                sem_wait (&serviceSem);
             }

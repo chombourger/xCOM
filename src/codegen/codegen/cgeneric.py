@@ -70,6 +70,14 @@ class CodeGenerator:
       proto += ',\n   ' + indent + 'void *user_data';
       proto += '\n' + indent + ')';
       return proto;
+
+   def proto_method_error (self, method, indent):
+      proto = '(\n';
+      proto += indent + '   xc_handle_t importHandle,\n';
+      proto += indent + '   xc_result_t error,\n';
+      proto += indent + '   void *user_data\n';
+      proto += indent + ')';
+      return proto;
       
    def proto_method (self, method, indent):
       proto = '(\n' + indent + '   xc_handle_t importHandle';
@@ -79,6 +87,10 @@ class CodeGenerator:
       proto += ',\n' + indent + '   void (* %s_result) %s'%(
          self.name_method(method),
          self.proto_method_result(method, indent + '   ')
+      );
+      proto += ',\n' + indent + '   void (* %s_error) %s'%(
+         self.name_method(method),
+         self.proto_method_error(method, indent + '   ')
       );
       proto += ',\n   ' + indent + 'void *user_data';
       proto += '\n' + indent + ')';
@@ -393,14 +405,16 @@ class CodeGenerator:
                   else:
                      file.write('   struct __queued_message *message = _message;\n');
                   file.write ('   xc_result_t (* method) %s = header->method;\n'%(self.proto_method(m, '   ')));
-                  file.write ('   void (* callback) %s = header->callback;\n'%(self.proto_method_result(m, '   ')));
+                  file.write ('   void (* result_cb) %s = header->result;\n'%(self.proto_method_result(m, '   ')));
+                  file.write ('   void (* error_cb) %s = header->error;\n'%(self.proto_method_error(m, '   ')));
                   file.write('   xc_result_t result = method (\n');
                   file.write('      header->importHandle');
                   for a in m.arguments():
                      if a.direction() == 'in':
                         file.write(',\n      message->%s'%(self.name_argument(a)));
-                  file.write(',\n      callback,\n');
-                  file.write('      header->user_data\n');
+                  file.write(',\n      result_cb');
+                  file.write(',\n      error_cb');
+                  file.write(',\n      header->user_data\n');
                   file.write('   );\n');
                   file.write('   header->free (message);\n');
                   file.write('}\n\n');
@@ -420,7 +434,8 @@ class CodeGenerator:
                   file.write('      memset (message, 0, sizeof (*message));\n');
                   file.write('      header = (struct __queued_message *) message;\n');
                   file.write('      header->method = %s;\n'%(self.name_provided_method(p,m)));
-                  file.write('      header->callback = %s_result;\n'%(self.name_method(m)));
+                  file.write('      header->result = %s_result;\n'%(self.name_method(m)));
+                  file.write('      header->error = %s_error;\n'%(self.name_method(m)));
                   file.write('      header->user_data = user_data;\n');
                   file.write('      header->handler = __call_%s;\n'%(self.name_provided_method(p,m)));
                   file.write('      header->importHandle = importHandle;\n');
@@ -471,7 +486,8 @@ class CodeGenerator:
       file.write ('struct __queued_message {\n');
       file.write ('   xc_clist_t node;\n');
       file.write ('   void *method;\n');
-      file.write ('   void *callback;\n');
+      file.write ('   void *result;\n');
+      file.write ('   void *error;\n');
       file.write ('   void *user_data;\n');
       file.write ('   void (* free) (void *_message);\n');
       file.write ('   void (* handler) (void *_message);\n');
