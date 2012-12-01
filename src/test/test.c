@@ -32,10 +32,31 @@
 #include <stdio.h>
 #endif
 
+//#ifdef HAVE_SEMAPHORE_H
+#include <semaphore.h>
+//#endif
+
 #include "component.h"
 
 /** Our component handle. */
 xc_handle_t componentHandle = XC_INVALID_HANDLE;
+
+struct TestData {
+   sem_t waitSem;
+   xc_result_t testResult;
+};
+
+static void
+test_run_result (
+   xc_handle_t importHandle,
+   xc_result_t result,
+   void *user_data
+) {
+   struct TestData *test = user_data;
+   importHandle = importHandle;
+   test->testResult = result;
+   sem_post (&test->waitSem);
+}
 
 /**
   * Sequentially run all the test components implementing the xcom.ITest
@@ -48,13 +69,15 @@ xc_result_t
 run_all_single (
    void
 ) {
-
+   struct TestData testData;
    xc_handle_t queryHandle;
    xc_handle_t importHandle;
    unsigned int i, testCount=0;
    unsigned int testLoaded=0, testPassed=0;
    xcom_itest_t *testImpl;
-   xc_result_t result, testResult;
+   xc_result_t result;
+
+   sem_init (&testData.waitSem, 0, 0);
 
    /* System-wide query for the xcom.ITest interface. */
    result = xCOM_QueryPort (
@@ -74,10 +97,13 @@ run_all_single (
             if (result == XC_OK) {
                /* Test loaded, count and run it. */
                testLoaded ++;
-               testResult = testImpl->Run (importHandle);
-               if (testResult == XC_OK) {
-                  /* Test passed. */
-                  testPassed ++;
+               result = testImpl->Run (importHandle, test_run_result, &testData);
+               if (result == XC_OK) {
+                  sem_wait (&testData.waitSem);
+                  if (testData.testResult == XC_OK) {
+                     /* Test passed. */
+                     testPassed ++;
+                  }
                }
                /* Unload before proceeding with the next test. */
                xCOM_UnImport (importHandle);
@@ -97,6 +123,7 @@ run_all_single (
       result = XC_ERR_NOENT;
    }
 
+   sem_destroy (&testData.waitSem);
    return result;
 }
 
@@ -158,7 +185,13 @@ main_menu (
   */
 xc_result_t
 application_start (
-   xc_handle_t importHandle 
+   xc_handle_t importHandle,
+   void (* Start_result) (
+      xc_handle_t importHandle,
+      xc_result_t result,
+      void *user_data
+   ),
+   void *user_data
 ) {
    printf (
       "\n"
@@ -166,6 +199,9 @@ application_start (
       "\n"
    );
    while (main_menu () == true);
+   if (Start_result != NULL) {
+      Start_result (importHandle, XC_OK, user_data);
+   }
    return XC_OK;
 }
 

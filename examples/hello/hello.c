@@ -27,9 +27,18 @@
 xc_result_t
 hello_say (
    xc_handle_t importHandle,
-   const char * /* in */ arg_greeting
+   const char * /* in */ arg_greeting,
+   void (* Say_result) (
+      xc_handle_t importHandle,
+      xc_result_t result,
+      void *user_data
+   ),
+   void *user_data
 ) {
    printf ("you said: '%s'\n", arg_greeting);
+   if (Say_result != NULL) {
+      Say_result (importHandle, XC_OK, user_data);
+   }
    return XC_OK;
 }
 

@@ -57,18 +57,33 @@ class CodeGenerator:
    def proto_arg (self, arg, indent):
       proto = ',\n' + indent + self.name_type(arg.type(),arg.direction()) + ' ';
       proto += '/* ' + arg.direction() + ' */ ';
-      if arg.direction == 'out':
-         proto += '*';
       proto += self.name_argument(arg);
+      return proto;
+
+   def proto_method_result (self, method, indent):
+      proto = '(\n';
+      proto += indent + '   xc_handle_t importHandle,\n';
+      proto += indent + '   xc_result_t result';
+      for a in method.arguments():
+         if a.direction() == 'out':
+            proto += self.proto_arg(a, indent + '   ');
+      proto += ',\n   ' + indent + 'void *user_data';
+      proto += '\n' + indent + ')';
       return proto;
       
    def proto_method (self, method, indent):
       proto = '(\n' + indent + '   xc_handle_t importHandle';
       for a in method.arguments():
-         proto += self.proto_arg(a, indent + '   ');
+         if a.direction() == 'in':
+            proto += self.proto_arg(a, indent + '   ');
+      proto += ',\n' + indent + '   void (* %s_result) %s'%(
+         self.name_method(method),
+         self.proto_method_result(method, indent + '   ')
+      );
+      proto += ',\n   ' + indent + 'void *user_data';
       proto += '\n' + indent + ')';
       return proto;
-      
+     
    def name_provided_method (self, port, method):
       name = string.lower(self.base_name_port(port)) + '_' + string.lower(self.name_method(method));
       return name;
@@ -263,7 +278,7 @@ class CodeGenerator:
                file.write ('   )');
                for m in intf.methods():
                   file.write (',\n');
-                  file.write ('   %s'%(self.name_provided_method(p,m)));
+                  file.write ('   __queue_%s'%(self.name_provided_method(p,m)));
                file.write ('\n};\n\n');
    
    def write_required_intf (self, file):
@@ -340,7 +355,228 @@ class CodeGenerator:
             file.write ('         NULL,\n');
          file.write ('         %s /* flags */\n'%(self.port_flags(p)));
          file.write ('      ),\n');
+
+   def write_queued_message_structs (self, file):
+      for c in self.m_components:
+         for p in c.ports():
+            if p.provided() == True:
+               intf = match.interface (self.m_interfaces, p.interface(), p.versionMajor(), p.versionMinor());
+               for m in intf.methods():
+                  args = len(m.arguments());
+                  if args > 0:
+                     file.write('/* %s: %s() */\n'%(intf.name(), m.name()));
+                     file.write('struct __%s_message {\n'%(self.name_provided_method(p,m)));
+                     file.write('   struct __queued_message __queued_message;\n');
+                     for a in m.arguments():
+                        if a.direction() == 'in':
+                           file.write('   %s %s;\n'%(self.name_type(a.type(),a.direction()), self.name_argument(a)));
+                     file.write('};\n\n');
+
+                     file.write('static void\n');
+                     file.write('__free_%s (\n'%(self.name_provided_method(p,m)));
+                     file.write('   void *_message\n');
+                     file.write(') {\n');
+                     file.write('   struct __%s_message *message = _message;\n'%(self.name_provided_method(p,m)));
+                     for a in m.arguments():
+                        if a.type() == 's':
+                           file.write('   free ((char *) message->%s);\n'%(self.name_argument(a)));
+                     file.write('   free (message);\n');
+                     file.write('}\n\n');
+
+                  file.write('static void\n');
+                  file.write('__call_%s (\n'%(self.name_provided_method(p,m)));
+                  file.write('   void *_message\n');
+                  file.write(') {\n');
+                  file.write('   struct __queued_message *header = _message;\n');
+                  if args > 0:
+                     file.write('   struct __%s_message *message = _message;\n'%(self.name_provided_method(p,m)));
+                  else:
+                     file.write('   struct __queued_message *message = _message;\n');
+                  file.write ('   xc_result_t (* method) %s = header->method;\n'%(self.proto_method(m, '   ')));
+                  file.write ('   void (* callback) %s = header->callback;\n'%(self.proto_method_result(m, '   ')));
+                  file.write('   xc_result_t result = method (\n');
+                  file.write('      header->importHandle');
+                  for a in m.arguments():
+                     if a.direction() == 'in':
+                        file.write(',\n      message->%s'%(self.name_argument(a)));
+                  file.write(',\n      callback,\n');
+                  file.write('      header->user_data\n');
+                  file.write('   );\n');
+                  file.write('   header->free (message);\n');
+                  file.write('}\n\n');
+
+                  file.write('static xc_result_t\n');
+                  file.write('__queue_%s '%(self.name_provided_method(p,m)));
+                  file.write(self.proto_method(m, ''));
+                  file.write(' {\n');
+                  if args > 0:
+                     file.write('   struct __%s_message *message;\n'%(self.name_provided_method(p,m)));
+                  else:
+                     file.write('   struct __queued_message *message;\n');
+                  file.write('   struct __queued_message *header;\n');
+                  file.write('   xc_result_t result = XC_OK;\n');
+                  file.write('   message = malloc (sizeof (*message));\n');
+                  file.write('   if (message != NULL) {\n');
+                  file.write('      memset (message, 0, sizeof (*message));\n');
+                  file.write('      header = (struct __queued_message *) message;\n');
+                  file.write('      header->method = %s;\n'%(self.name_provided_method(p,m)));
+                  file.write('      header->callback = %s_result;\n'%(self.name_method(m)));
+                  file.write('      header->user_data = user_data;\n');
+                  file.write('      header->handler = __call_%s;\n'%(self.name_provided_method(p,m)));
+                  file.write('      header->importHandle = importHandle;\n');
+                  if args > 0:
+                     file.write('      header->free = __free_%s;\n'%(self.name_provided_method(p,m)));
+                  else:
+                     file.write('      header->free = free;\n');
+                  for a in m.arguments():
+                     if a.type() == 's':
+                        file.write('      if ((result == XC_OK) && (%s != NULL)) {\n'%(self.name_argument(a)));
+                        file.write('         message->%s = strdup (%s);\n'%(self.name_argument(a),self.name_argument(a)));
+                        file.write('         if (message->%s == NULL) {\n'%(self.name_argument(a)));
+                        file.write('            result = XC_ERR_NOMEM;\n');
+                        file.write('         }\n');
+                        file.write('      }\n');
+                     else:
+                        file.write('      message->%s = %s;\n'%(self.name_argument(a),self.name_argument(a)));
+                  file.write('      if (result == XC_OK) {\n');
+                  file.write('         pthread_mutex_lock (&__lock);\n');
+                  file.write('         XC_CLIST_ADDTAIL (&__queued_messages, message);\n');
+                  file.write('         sem_post (&__sem);\n');
+                  file.write('         pthread_mutex_unlock (&__lock);\n');
+                  file.write('      }\n');
+                  file.write('      else {\n');
+                  file.write('         __free_%s (message);\n'%(self.name_provided_method(p,m)));
+                  file.write('      }\n');
+                  file.write('   }\n');
+                  file.write('   else {\n');
+                  file.write('      result = XC_ERR_NOMEM;\n');
+                  file.write('   }\n');
+                  file.write('   return result;\n');
+                  file.write('}\n\n');
+ 
+   def write_component_init_internal (self, comp, file):
+      file.write ('/* mutex to the message queue */\n');
+      file.write ('static pthread_mutex_t __lock;\n');
+      file.write ('\n');
+      file.write ('/* semaphore to wake-up the message queue thread. */\n');
+      file.write ('static sem_t __sem;\n');
+      file.write ('\n');
+      file.write ('/* message queue thread. */\n');
+      file.write ('static pthread_t __%s_thread;\n'%(self.name_component(comp)));
+      file.write ('\n');
+      file.write ('/* boolean for controlling execution of the message queue thread. */\n');
+      file.write ('static bool __%s_quit;\n'%(self.name_component(comp)));
+      file.write ('\n');
+      file.write ('/* struct for queued messages. */\n');
+      file.write ('struct __queued_message {\n');
+      file.write ('   xc_clist_t node;\n');
+      file.write ('   void *method;\n');
+      file.write ('   void *callback;\n');
+      file.write ('   void *user_data;\n');
+      file.write ('   void (* free) (void *_message);\n');
+      file.write ('   void (* handler) (void *_message);\n');
+      file.write ('   xc_handle_t importHandle;\n');
+      file.write ('};\n');
+      file.write ('\n');
+      file.write ('/* list of queued messages. */\n');
+      file.write ('static xc_clist_t __queued_messages;\n');
+      file.write ('\n');
+      self.write_queued_message_structs (file);
+      file.write ('static void *\n');
+      file.write ('__%s_run (\n'%(self.name_component(comp)));
+      file.write ('   void *arg\n');
+      file.write (') {\n');
+      file.write ('   struct __queued_message *message;\n');
+      file.write ('   arg = arg;\n');
+      file.write ('   while (1) {\n');
+      file.write ('      sem_wait (&__sem);\n');
+      file.write ('      pthread_mutex_lock (&__lock);\n');
+      file.write ('      if (__%s_quit == false) {\n'%(self.name_component(comp)));
+      file.write ('         message = XC_CLIST_HEAD (&__queued_messages);\n');
+      file.write ('         if (!XC_CLIST_END (&__queued_messages, message)) {\n');
+      file.write ('            XC_CLIST_REMOVE (message);\n');
+      file.write ('            pthread_mutex_unlock (&__lock);\n');
+      file.write ('            message->handler (message);\n');
+      file.write ('         }\n');
+      file.write ('      }\n');
+      file.write ('      else break;\n');
+      file.write ('   }\n');
+      file.write ('   message = XC_CLIST_HEAD (&__queued_messages);\n');
+      file.write ('   while (!XC_CLIST_END (&__queued_messages, message)) {\n');
+      file.write ('      struct __queued_message *next = XC_CLIST_NEXT (message);\n');
+      file.write ('      XC_CLIST_REMOVE (message);\n');
+      file.write ('      message->free (message);\n');
+      file.write ('      message = next;\n');
+      file.write ('   };\n');
+      file.write ('   pthread_mutex_unlock (&__lock);\n');
+      file.write ('   return NULL;\n');
+      file.write ('}\n');
+      file.write ('\n');
+
+      file.write ('/* %s component init(). */\n'%(comp.name()));
+      file.write ('static xc_result_t\n');
+      file.write ('__%s (\n'%(self.name_component_init(comp)));
+      file.write ('   xc_handle_t componentHandle\n');
+      file.write (') {\n');
+      file.write ('   xc_result_t result;\n');
+      file.write ('   componentHandle = componentHandle;\n');
+      file.write ('\n');
+      if comp.init() == True:
+         file.write ('   result = %s (componentHandle);\n'%(self.name_component_init(comp)));
+      else:
+         file.write ('   result = XC_OK;\n');
+      file.write ('   if (result == XC_OK) {\n');
+      file.write ('      XC_CLIST_INIT (&__queued_messages);\n');
+      file.write ('      __%s_quit = false;\n'%(self.name_component(comp)));
+      file.write ('      result = sem_init (&__sem, 0, 0);\n');
+      file.write ('      if (result == 0) {\n');
+      file.write ('         result = pthread_mutex_init (&__lock, NULL);\n');
+      file.write ('         if (result == 0) {\n');
+      file.write ('            result = pthread_create (\n');
+      file.write ('               &__%s_thread,\n'%(self.name_component(comp)));
+      file.write ('               NULL,\n');
+      file.write ('               __%s_run,\n'%(self.name_component(comp)));
+      file.write ('               NULL\n');
+      file.write ('            );\n');
+      file.write ('            if (result != 0) {\n');
+      file.write ('               pthread_mutex_destroy (&__lock);\n');
+      file.write ('               sem_destroy (&__sem);\n');
+      file.write ('            }\n');
+      file.write ('         }\n');
+      file.write ('         else {\n');
+      file.write ('            sem_destroy (&__sem);\n');
+      file.write ('         }\n');
+      file.write ('      }\n');
+      file.write ('      if (result != 0) {\n');
+      if comp.destroy() == True:
+         file.write ('         result = %s (componentHandle);\n'%(self.name_component_destroy(comp)));
+      file.write ('         result = XC_ERR_NOMEM;\n');
+      file.write ('      }\n');
+      file.write ('   }\n');
+      file.write ('   return result;\n');
+      file.write ('}\n');
+      file.write ('\n');
          
+      file.write ('/* %s component destroy(). */\n'%(comp.name()));
+      file.write ('static xc_result_t\n');
+      file.write ('__%s (\n'%(self.name_component_destroy(comp)));
+      file.write ('   xc_handle_t componentHandle\n');
+      file.write (') {\n');
+      file.write ('   xc_result_t result;\n');
+      file.write ('   componentHandle = componentHandle;\n');
+      file.write ('   __%s_quit = true;\n'%(self.name_component(comp)));
+      file.write ('   sem_post (&__sem);\n');
+      file.write ('   pthread_join (__%s_thread, NULL);\n'%(self.name_component(comp)));
+      file.write ('   sem_destroy (&__sem);\n');
+      file.write ('   pthread_mutex_destroy (&__lock);\n');
+      if comp.destroy() == True:
+         file.write ('   result = %s (componentHandle);\n'%(self.name_component_destroy(comp)));
+      else:
+         file.write ('   result = XC_OK;\n');
+      file.write ('   return result;\n');
+      file.write ('}\n');
+      file.write ('\n');
+
    def write_component (self, comp, file):
       file.write ('/* Component %s version %u.%u */\n'%(comp.name(), comp.versionMajor(), comp.versionMinor()));
       file.write ('XC_DECLARE_COMPONENT {\n');
@@ -348,14 +584,8 @@ class CodeGenerator:
       file.write ('   "%s",\n'%(comp.description()));
       file.write ('   %u,\n'%(comp.versionMajor()));
       file.write ('   %u,\n'%(comp.versionMinor()));
-      if comp.init() == True:
-         file.write ('   %s,\n'%(self.name_component_init(comp)));
-      else:
-         file.write ('   NULL,\n');
-      if comp.destroy() == True:
-         file.write ('   %s,\n'%(self.name_component_destroy(comp)));
-      else:
-         file.write ('   NULL,\n');
+      file.write ('   __%s,\n'%(self.name_component_init(comp)));
+      file.write ('   __%s,\n'%(self.name_component_destroy(comp)));
       file.write ('   {\n');
       self.write_provided_ports_init(comp, file);
       self.write_required_ports_init(comp, file);
@@ -367,7 +597,15 @@ class CodeGenerator:
       filename = self.source_file();
       cfile = open (filename, "w");
       cfile.write ('/* Generated file, DO NOT EDIT! */\n\n');
+      cfile.write ('#include <xCOM/clist.h>\n');
+      cfile.write ('#include <pthread.h>\n');
+      cfile.write ('#include <semaphore.h>\n');
+      cfile.write ('#include <stdbool.h>\n');
+      cfile.write ('#include <stdlib.h>\n');
+      cfile.write ('#include <string.h>\n');
       cfile.write ('#include "%s"\n\n'%(self.header_file()));
+      for c in self.m_components:
+         self.write_component_init_internal (c, cfile);
       self.write_provided_intf (cfile);
       self.write_required_intf (cfile);
       for c in self.m_components:

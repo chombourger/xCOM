@@ -297,8 +297,10 @@ component_unload (
       }
       componentPtr->init = NULL;
       componentPtr->destroy = NULL;
-      dlclose (componentPtr->handle);
-      componentPtr->handle = NULL;
+      if (componentPtr->handle != NULL) {
+         dlclose (componentPtr->handle);
+         componentPtr->handle = NULL;
+      }
       componentPtr->state = COMP_STATE_NULL;
    }
    
@@ -798,6 +800,7 @@ component_destroy (
       (void) component_close_imports (componentPtr);
    }
 
+   componentPtr-> state = COMP_STATE_LOADED;
    (void) component_unload (componentPtr);
 
    if (initialized == true) {

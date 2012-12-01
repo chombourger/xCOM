@@ -43,26 +43,35 @@
 #endif
 
 #include <getopt.h>
+#include <semaphore.h>
 
 #include <xCOM.h>
 #include "component.h"
 
-struct AppThreadData {
-   xcom_iapplication_t *impl;
-   xc_handle_t importHandle;
-   xc_result_t result;
-};
-
-void *
-application_run (
-   void *app
+static void
+service_result (
+   xc_handle_t importHandle,
+   xc_result_t result,
+   void *user_data
 ) {
-   struct AppThreadData *appThreadData = app;
+   sem_t *waitSem = user_data;
+   importHandle = importHandle;
+   if (result != XC_OK) {
+      fprintf (stderr, "warning: service failed to start/stop\n");
+   }
+   sem_post (waitSem);
+}
 
-   appThreadData->result = appThreadData->impl->Start (appThreadData->importHandle);
-
+static void
+application_start_result (
+   xc_handle_t importHandle,
+   xc_result_t result,
+   void *user_data
+) {
+   importHandle = importHandle;
+   user_data = user_data;
+   printf ("application exited with result=%d\n", result);
    xCOM_Quit ();
-   return NULL;
 }
 
 int
@@ -75,13 +84,12 @@ main (
    xc_handle_t *serviceHandles = NULL;
    xc_handle_t applicationHandle;
    const char *appName = NULL;
-   pthread_t appThread;
-   bool appStarted = false;
-   struct AppThreadData appThreadData;
+   bool appImported = false;
    unsigned int i, servicesCount=0, appCount=0;
    xcom_iapplication_t *appImpl;
    xcom_iservice_t **serviceImpls = NULL;
    unsigned int flags = XC_LOADF_NONE;
+   sem_t serviceSem;
    xc_result_t result;
 
    while (1) {
@@ -124,6 +132,7 @@ main (
 
       /* Query and load components implementing xcom.IService. */
       if (result == XC_OK) {
+         sem_init (&serviceSem, 0, 0);
          result = xCOM_QueryInterface (
             XC_INVALID_HANDLE,
             XCOM_ISERVICE_NAME,
@@ -148,7 +157,10 @@ main (
                         result = xCOM_Import (serviceHandle, (xc_interface_t **) &serviceImpls[i]);
                         if (result == XC_OK) {
                            serviceHandles[i] = serviceHandle;
-                           result = serviceImpls[i]->Start (serviceHandles[i]);
+                           result = serviceImpls[i]->Start (serviceHandles[i], service_result, &serviceSem);
+                           if (result == XC_OK) {
+                              sem_wait (&serviceSem);
+                           }
                         }
                         else {
                            /* FIXME print the name of the service we failed to load. */
@@ -195,15 +207,8 @@ main (
                if (result == XC_OK) {
                   result = xCOM_Import (applicationHandle, (xc_interface_t **) &appImpl);
                   if (result == XC_OK) {
-                     appThreadData.impl = appImpl;
-                     appThreadData.importHandle = applicationHandle;
-                     int r = pthread_create (&appThread, NULL, application_run, &appThreadData);
-                     if (r == 0) {
-                        appStarted = true;
-                     }
-                     else {
-                        result = XC_ERR_NOMEM;
-                     }
+                     (void) appImpl->Start (applicationHandle, application_start_result, NULL);
+                     appImported = true;
                      break;
                   }
                }
@@ -217,22 +222,23 @@ main (
       }
 
       /* Wait for the application thread to return. */
-      if (appStarted == true) {
-         result = pthread_join (appThread, NULL);
-         assert (result == 0);
-         result = appThreadData.result;
+      if (appImported == true) {
          (void) xCOM_UnImport (applicationHandle);
       }
 
       /* Stop and unimport services. */
       for (i=0; i<servicesCount; i++) {
          if (serviceHandles[i] != XC_INVALID_HANDLE) {
-            (void) serviceImpls[i]->Stop (serviceHandles[i]);
+            result = serviceImpls[i]->Stop (serviceHandles[i], service_result, &serviceSem);
+            if (result == XC_OK) {
+               sem_wait (&serviceSem);
+            }
             (void) xCOM_UnImport (serviceHandles[i]);
          }
       }
       free (serviceHandles); serviceHandles=NULL;
       free (serviceImpls); serviceImpls=NULL;
+      sem_destroy (&serviceSem);
 
       xCOM_Destroy ();
    }
