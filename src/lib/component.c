@@ -1029,3 +1029,22 @@ component_unref_port (
    TRACE3 (("exiting"));
 }
 
+const char *
+xCOM_GetComponentBundlePath (
+   xc_handle_t componentHandle
+) {
+   component_t *componentPtr;
+   const char *result = NULL;
+
+   TRACE3 (("called with componentHandle=%u", componentHandle));
+
+   componentPtr = component_ref (componentHandle);
+   if (componentPtr != NULL) {
+      result = componentPtr->bundlePtr->path;
+   }
+   component_unref (componentPtr);
+
+   TRACE3 (("exiting with result='%s'", result));
+   return result;
+}
+

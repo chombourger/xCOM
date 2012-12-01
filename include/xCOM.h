@@ -334,6 +334,19 @@ xCOM_LoadComponentBundle (
 XCOM_EXPORT;
 
 /**
+  * Return the path to the component bundle of a component.
+  *
+  * @param componentHandle handle of the component.
+  * @return the path to the component bundle the component was loaded from
+  *
+  */
+const char *
+xCOM_GetComponentBundlePath (
+   xc_handle_t componentHandle
+)
+XCOM_EXPORT;
+
+/**
   * Execute the xCOM framework event loop.
   *
   * @return XC_OK on success, an xCOM error otherwise.
