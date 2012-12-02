@@ -791,13 +791,17 @@ component_destroy (
    assert (componentPtr != NULL);
    pthread_mutex_lock (&componentPtr->lock);
 
-   if (componentPtr->state >= COMP_STATE_INITIALIZED) {
+   if (componentPtr->state == COMP_STATE_INITIALIZED) {
+      /* Set to unloading state and remember that component was initialized. */
+      componentPtr->state = COMP_STATE_UNLOADING;
       initialized = true;
+
+      /* Close imports done by this component. */
+      (void) component_close_imports (componentPtr);
+
       if (componentPtr->destroy) {
          (void) componentPtr->destroy (componentPtr->id);
       }
-      /* Close imports done by this component. */
-      (void) component_close_imports (componentPtr);
    }
 
    componentPtr-> state = COMP_STATE_LOADED;

@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component name="examples.python" version-major="1" version-minor="0" init="true" destroy="true">
    <port name="App" interface="xcom.IApplication" register="true" unregister="true"></port>
+   <port name="Hello" interface="examples.IHello" required="true" loadtime="true" register="true" unregister="true"></port>
 </component>

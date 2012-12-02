@@ -27,9 +27,10 @@ extern "C" {
 
 /** Component states. */
 typedef enum {
-   COMP_STATE_NULL,       /**< Initial state, component unusable. */
-   COMP_STATE_LOADED,     /**< Component loaded but not yet initialized. */
-   COMP_STATE_INITIALIZED /**< Component loaded and initialized. */
+   COMP_STATE_NULL,        /**< Initial state, component unusable. */
+   COMP_STATE_LOADED,      /**< Component loaded but not yet initialized. */
+   COMP_STATE_INITIALIZED, /**< Component loaded and initialized. */
+   COMP_STATE_UNLOADING
 } component_state_t;
 
 /**

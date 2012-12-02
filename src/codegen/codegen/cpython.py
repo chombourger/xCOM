@@ -31,9 +31,216 @@ class CodeGenerator(cgeneric.CodeGenerator):
 
    def write_component_init_internal (self, comp, file):
       cgeneric.CodeGenerator.write_component_init_internal (self, comp, file);
+
+   def source_write_queued_message_struct_members (self, file):
+      cgeneric.CodeGenerator.source_write_queued_message_struct_members (self, file);
+      file.write ('   PyObject *oMethodName;\n');
+      file.write ('   PyObject *oUserData;\n');
+      file.write ('   PyObject *oError;\n');
+      file.write ('   PyMethodDef oErrorDef;\n');
+      file.write ('   PyObject *oResult;\n');
+      file.write ('   PyMethodDef oResultDef;\n');
+
+   def is_imported (self, i):
+      for c in self.m_components:
+         for p in c.ports():
+            if p.provided() == False:
+               if p.interface() == i.name() and p.versionMajor() == i.versionMajor() and p.versionMinor() == i.versionMinor():
+                   return True;
+      return False;
+
+   def python_to_native_type (self, type):
+      if type == 'y':
+         return '(uint8_t) PyInt_AsLong';
+      elif type == 'b':
+         return '(bool) PyInt_AsLong';
+      elif type == 'n':
+         return '(int16_t) PyInt_AsLong';
+      elif type == 'q':
+         return '(uint16_t) PyLong_AsUnsignedLong';
+      elif type == 'i':
+         return 'PyInt_AsLong';
+      elif type == 'u':
+         return 'PyLong_AsUnsignedLong';
+      elif type == 'x':
+         return 'PyLong_AsLongLong';
+      elif type == 't':
+         return 'PyLong_AsUnsignedLongLong';
+      elif type == 'd':
+         return 'PyFloat_AsDouble';
+      elif type == 's':
+         return 'PyString_AsString';
+      # TODO everything else to default to variant type
+      return None;
+
+   def source_write_interface_wrappers (self, intf, file):
+      for m in intf.methods():
+         file.write ('/* %s: %s */\n'%(intf.name(), m.name()));
+         file.write ('static PyObject *\n');
+         file.write ('%s_%s (\n'%(self.name_interface(intf),self.name_method(m)));
+         file.write ('   PyObject *oSelf,\n');
+         file.write ('   PyObject *oArgs\n');
+         file.write (') {\n');
+         file.write ('   PyObject *oImportHandle;\n');
+         file.write ('   xc_handle_t importHandle;\n');
+         file.write ('   %s_t *switchPtr;\n'%(self.name_interface (intf)));
+         for a in m.arguments():
+            if a.direction() == 'in':
+               file.write ('   PyObject *py_%s;\n'%(self.name_argument(a)));
+               file.write ('   %s %s;\n'%(self.name_type(a.type(),a.direction()),self.name_argument(a)));
+         file.write ('   PyObject *oSuccess;\n');
+         file.write ('   PyObject *oFailure;\n');
+         file.write ('   PyObject *oUserData;\n');
+         file.write ('   PyObject *oTuple;\n');
+         file.write ('\n');
+
+         file.write ('   /* Get import handle and switch */\n');
+         file.write ('   oImportHandle = PyObject_GetAttrString (oSelf, "__import_handle");\n');
+         file.write ('   importHandle  = PyLong_AsUnsignedLong (oImportHandle);\n');
+         file.write ('   switchPtr     = (%s_t *) xCOM_GetSwitch (importHandle);\n'%(
+            self.name_interface(intf)
+         ));
+         file.write ('\n');
+
+         file.write ('   /* Get argument values. */\n');
+         i = 0;
+         for a in m.arguments():
+            if a.direction() == 'in':
+               file.write ('   py_%s = PyTuple_GetItem (oArgs, %d);\n'%(self.name_argument(a), i));
+               file.write ('   %s = %s (py_%s);\n'%(
+                  self.name_argument(a),
+                  self.python_to_native_type (a.type()),
+                  self.name_argument(a)
+               ));
+               i = i + 1;
+         file.write ('   oTuple    = PyTuple_New (3);\n');
+         file.write ('   oSuccess  = PyTuple_GetItem (oArgs, %d);\n'%(i));
+         file.write ('   PyTuple_SetItem (oTuple, 0, oSuccess);\n');
+         i = i + 1;
+         file.write ('   oFailure  = PyTuple_GetItem (oArgs, %d);\n'%(i));
+         file.write ('   PyTuple_SetItem (oTuple, 1, oFailure);\n');
+         i = i + 1;
+         file.write ('   oUserData = PyTuple_GetItem (oArgs, %d);\n'%(i));
+         file.write ('   PyTuple_SetItem (oTuple, 2, oUserData);\n');
+         i = i + 1;
+         file.write ('\n');
+
+         # TODO handle methods with out arguments
+         file.write ('   /* Call imported method. */\n');
+         file.write ('   switchPtr->%s (\n'%(self.name_method(m)));
+         file.write ('      importHandle,\n');
+         for a in m.arguments():
+            if a.direction() == 'in':
+               file.write ('      %s,\n'%(self.name_argument(a)));
+         file.write ('      native_method_result_to_python,\n');
+         file.write ('      native_method_error_to_python,\n');
+         file.write ('      oTuple\n');
+         file.write ('   );\n');
+         file.write ('   Py_RETURN_NONE;\n');
+         file.write ('}\n');
+         file.write ('\n');
+
+         file.write ('static PyMethodDef %s_%s_def = {\n'%(self.name_interface(intf),self.name_method(m)));
+         file.write ('   "%s",\n'%(m.name()));
+         file.write ('   %s_%s,\n'%(self.name_interface(intf),self.name_method(m)));
+         file.write ('   METH_VARARGS,\n');
+         file.write ('   NULL\n');
+         file.write ('};\n');
+         file.write ('\n');
+
+   def source_write_wrappers (self, file):
+      for i in self.m_interfaces:
+         if self.is_imported (i):
+            self.source_write_interface_wrappers (i, file);
+
+   def source_write_globals (self, comp, file):
+      cgeneric.CodeGenerator.source_write_globals (self, comp, file);
+      file.write ('/* Global Python interpreter. */\n');
+      file.write ('static PyThreadState *__global;\n');
+      file.write ('\n');
+      file.write ('/* Python interpreter for this component. */\n');
+      file.write ('static PyThreadState *__component;\n');
+      file.write ('\n');
+      file.write ('/* Python module holding component code. */\n');
+      file.write ('static PyObject *__module;\n');
+      file.write ('\n');
+      file.write ('/* Component handle. */\n');
+      file.write ('static xc_handle_t __component_handle;\n');
+      file.write ('\n');
+      file.write ('/* Whether initialized. */\n');
+      file.write ('static bool __python_initialized = false;\n');
+      file.write ('\n');
+
+      # FIXME find a better way to add path to python component
+      file.write ('static xc_result_t\n');
+      file.write ('__python_initialize (\n');
+      file.write ('   xc_handle_t componentHandle\n');
+      file.write (') {\n');
+      file.write ('   pthread_mutex_lock (&__lock);\n');
+      file.write ('   if (__python_initialized == false) {\n');
+      file.write ('      Py_Initialize ();\n');
+      file.write ('      PyEval_InitThreads ();\n');
+      file.write ('      __global = PyThreadState_Get ();\n');
+      file.write ('      __component = Py_NewInterpreter ();\n');
+      file.write ('      if (__component != NULL) {\n');
+      file.write ('         char syspath [1024];\n');
+      file.write ('         strcpy (syspath, "import sys\\nsys.path.append(\'");\n');
+      file.write ('         strcat (syspath, xCOM_GetComponentBundlePath (componentHandle));\n');
+      file.write ('         strcat (syspath, "/Code/python\')\\n");\n');
+      file.write ('         PyRun_SimpleString (syspath);\n');
+      file.write ('         __module = PyImport_ImportModule ("%s");\n'%(comp.name()));
+      file.write ('         __python_initialized = true;\n');
+      file.write ('      }\n');
+      file.write ('      PyEval_ReleaseLock ();\n');
+      file.write ('   }\n');
+      file.write ('   pthread_mutex_unlock (&__lock);\n');
+      file.write ('   return XC_OK;\n');
+      file.write ('}\n\n');
+ 
+      file.write ('static void\n');
+      file.write ('__python_finalize (\n');
+      file.write ('   xc_handle_t componentHandle\n');
+      file.write (') {\n');
+      file.write ('   pthread_mutex_lock (&__lock);\n');
+      file.write ('   if (__python_initialized == true) {\n');
+      file.write ('      PyEval_AcquireLock ();\n');
+      file.write ('      PyThreadState_Swap (__component);\n');
+      file.write ('      Py_EndInterpreter (__component);\n');
+      file.write ('      __component = NULL;\n');
+      file.write ('      PyThreadState_Swap (__global);\n');
+      file.write ('      Py_Finalize ();\n');
+      file.write ('      PyEval_ReleaseLock ();\n');
+      file.write ('      __python_initialized = false;\n');
+      file.write ('   }\n');
+      file.write ('   pthread_mutex_unlock (&__lock);\n');
+      file.write ('}\n\n');
+
+      file.write ('static PyObject *\n');
+      file.write ('__python_register_unregister (\n');
+      file.write ('   xc_handle_t componentHandle,\n'); 
+      file.write ('   xc_handle_t importHandle,\n'); 
+      file.write ('   const char *name\n'); 
+      file.write (') {\n');
+      file.write ('   PyObject *oDict, *oFunc, *result = NULL;\n');
+      file.write ('   PyEval_AcquireLock ();\n');
+      file.write ('   PyThreadState_Swap (__component);\n');
+      file.write ('   oDict = PyModule_GetDict (__module);\n');
+      file.write ('   oFunc = PyDict_GetItemString (oDict, name);\n');
+      file.write ('   if (PyCallable_Check (oFunc)) {\n');
+      file.write ('      result = PyObject_CallFunction (oFunc, "(II)", componentHandle, importHandle);\n');
+      file.write ('   }\n');
+      file.write ('   else {\n');
+      file.write ('      result = NULL;\n');
+      file.write ('   }\n');
+      file.write ('   if (oFunc != NULL) Py_DECREF (oFunc);\n');
+      file.write ('   PyThreadState_Swap (__global);\n');
+      file.write ('   PyEval_ReleaseLock ();\n');
+      file.write ('   return result;\n');
+      file.write ('}\n\n');
+
       file.write ('/* Generic Method Error Python/C callback. */\n');
       file.write ('static PyObject *\n');
-      file.write ('method_error (\n');
+      file.write ('python_method_error_to_native (\n');
       file.write ('   PyObject *oSelf,\n');
       file.write ('   PyObject *oArgs\n');
       file.write (') {\n');
@@ -53,54 +260,54 @@ class CodeGenerator(cgeneric.CodeGenerator):
       file.write ('   Py_RETURN_NONE;\n');
       file.write ('}\n\n');
 
-   def source_write_queued_message_struct_members (self, comp, file):
-      cgeneric.CodeGenerator.source_write_queued_message_struct_members (self, comp, file);
-      file.write ('   PyObject *oMethodName;\n');
-      file.write ('   PyObject *oUserData;\n');
-      file.write ('   PyObject *oError;\n');
-      file.write ('   PyMethodDef oErrorDef;\n');
-      file.write ('   PyObject *oResult;\n');
-      file.write ('   PyMethodDef oResultDef;\n');
-
-   def write_component_queue_globals (self, comp, file):
-      cgeneric.CodeGenerator.write_component_queue_globals (self, comp, file);
-      file.write ('/* Global Python interpreter. */\n');
-      file.write ('static PyThreadState *__global;\n');
-      file.write ('\n');
-      file.write ('/* Python interpreter for this component. */\n');
-      file.write ('static PyThreadState *__component;\n');
-      file.write ('\n');
-      file.write ('/* Python module holding component code. */\n');
-      file.write ('static PyObject *__module;\n');
-      file.write ('\n');
-      file.write ('/* Component handle. */\n');
-      file.write ('static xc_handle_t __component_handle;\n');
-      file.write ('\n');
-      file.write ('static PyObject *\n');
-      file.write ('method_error (\n');
-      file.write ('   PyObject *oSelf,\n');
-      file.write ('   PyObject *oArgs\n');
-      file.write (');\n\n');
-
-      file.write ('static PyObject *\n');
-      file.write ('__python_register_unregister (\n');
-      file.write ('   xc_handle_t componentHandle,\n'); 
-      file.write ('   xc_handle_t importHandle,\n'); 
-      file.write ('   const char *name\n'); 
+      file.write ('static void\n');
+      file.write ('native_method_error_to_python (\n');
+      file.write ('   xc_handle_t importHandle,\n');
+      file.write ('   xc_result_t error,\n');
+      file.write ('   void *user_data\n');
       file.write (') {\n');
-      file.write ('   PyObject *result = NULL;\n');
-      file.write ('   PyObject *oDict = PyModule_GetDict (__module);\n');
-      file.write ('   PyObject *oFunc = PyDict_GetItemString (oDict, name);\n');
-      file.write ('   if (PyCallable_Check (oFunc)) {\n');
-      file.write ('      result = PyObject_CallFunction (oFunc, "(II)", componentHandle, importHandle);\n');
+      file.write ('   PyObject *oContext, *oFailure, *oUserData, *oImportHandle, *oError, *oResult;\n');
+      file.write ('   oContext  = user_data;\n');
+      file.write ('   PyEval_AcquireLock ();\n');
+      file.write ('   PyThreadState_Swap (__component);\n');
+      file.write ('   oFailure = PyTuple_GetItem (oContext, 1);\n');
+      file.write ('   oUserData = PyTuple_GetItem (oContext, 2);\n');
+      file.write ('   oImportHandle = PyInt_FromLong (importHandle);\n');
+      file.write ('   oError = PyInt_FromLong (error);\n');
+      file.write ('   if (PyCallable_Check (oFailure)) {\n');
+      file.write ('      oResult = PyObject_CallFunctionObjArgs (oFailure, oImportHandle, oError, oUserData, NULL);\n');
+      file.write ('      if (oResult != NULL) Py_DECREF (oResult);\n');
       file.write ('   }\n');
-      file.write ('   else {\n');
-      file.write ('      PyErr_Print ();\n');
-      file.write ('      result = NULL;\n');
-      file.write ('   }\n');
-      file.write ('   if (oFunc != NULL) Py_DECREF (oFunc);\n');
-      file.write ('   return result;\n');
+      file.write ('   Py_DECREF (oContext);\n');
+      file.write ('   PyThreadState_Swap (__global);\n');
+      file.write ('   PyEval_ReleaseLock ();\n');
       file.write ('}\n\n');
+
+      file.write ('static void\n');
+      file.write ('native_method_result_to_python (\n');
+      file.write ('   xc_handle_t importHandle,\n');
+      file.write ('   xc_result_t error,\n');
+      file.write ('   void *user_data\n');
+      file.write (') {\n');
+      file.write ('   PyObject *oContext, *oSuccess, *oUserData, *oImportHandle, *oError, *oResult;\n');
+      file.write ('   oContext  = user_data;\n');
+      file.write ('   PyEval_AcquireLock ();\n');
+      file.write ('   PyThreadState_Swap (__component);\n');
+      file.write ('   oSuccess = PyTuple_GetItem (oContext, 0);\n');
+      file.write ('   oUserData = PyTuple_GetItem (oContext, 2);\n');
+      file.write ('   oImportHandle = PyInt_FromLong (importHandle);\n');
+      file.write ('   oError = PyInt_FromLong (error);\n');
+      file.write ('   if (PyCallable_Check (oSuccess)) {\n');
+      file.write ('      oResult = PyObject_CallFunctionObjArgs (oSuccess, oImportHandle, oError, oUserData, NULL);\n');
+      file.write ('      if (oResult != NULL) Py_DECREF (oResult);\n');
+      file.write ('   }\n');
+      file.write ('   Py_DECREF (oContext);\n');
+      file.write ('   PyThreadState_Swap (__global);\n');
+      file.write ('   PyEval_ReleaseLock ();\n');
+      file.write ('}\n\n');
+
+      # Write wrappers for imported interfaces
+      self.source_write_wrappers (file);
 
    def queue_arg_type (self, a):
       return 'PyObject *';
@@ -138,7 +345,7 @@ class CodeGenerator(cgeneric.CodeGenerator):
       file.write ('      if (%s_error != NULL) {\n'%(self.name_method(m)));
       file.write ('         const char *NAME = "%s_error";\n'%(self.name_method(m)));
       file.write ('         header->oErrorDef.ml_name = NAME;\n');
-      file.write ('         header->oErrorDef.ml_meth = method_error;\n');
+      file.write ('         header->oErrorDef.ml_meth = python_method_error_to_native;\n');
       file.write ('         header->oErrorDef.ml_flags = METH_VARARGS;\n');
       file.write ('         header->oErrorDef.ml_doc = NULL;\n');
       file.write ('         PyObject *name = PyString_FromString (NAME);\n');
@@ -164,6 +371,8 @@ class CodeGenerator(cgeneric.CodeGenerator):
          result += indent + 'message->%s = %s;\n'%(self.name_argument(a),self.name_argument(a));
       return result;
 
+   # Do not write the C declarations for the provided methods since they
+   # would be implemented in Python instead!
    def write_port_decls (self, p, file):
       return None;
 
@@ -174,43 +383,16 @@ class CodeGenerator(cgeneric.CodeGenerator):
       else:
          file.write (indent + 'result = XC_OK;\n');
  
-   # FIXME find a better way to add path to python component
    def source_write_call_user_init (self, comp, file):
       file.write ('   __component_handle = componentHandle;\n');
-      file.write ('   Py_Initialize ();\n');
-      file.write ('   PyEval_InitThreads ();\n');
-      file.write ('   __global = PyThreadState_Get ();\n');
-      file.write ('   __component = Py_NewInterpreter ();\n');
-      file.write ('   if (__component != NULL) {\n');
-      file.write ('      char syspath [1024];\n');
-      file.write ('      strcpy (syspath, "import sys\\nsys.path.append(\'");\n');
-      file.write ('      strcat (syspath, xCOM_GetComponentBundlePath (componentHandle));\n');
-      file.write ('      strcat (syspath, "/Code/python\')\\n");\n');
-      file.write ('      PyRun_SimpleString (syspath);\n');
-      file.write ('      __module = PyImport_ImportModule ("%s");\n'%(comp.name()));
-      file.write ('      if (__module != NULL) {\n');
       self.source_write_call_python_init (comp, file, '         ');
-      file.write ('      }\n');
-      file.write ('      else {\n');
-      file.write ('         Py_EndInterpreter (__component);\n');
-      file.write ('         result = XC_ERR_NOENT;\n');
-      file.write ('      }\n');
-      file.write ('   }\n');
-      file.write ('   else {\n');
-      file.write ('      result = XC_ERR_NOMEM;\n');
-      file.write ('   }\n');
-      file.write ('   PyThreadState_Swap (__global);\n');
 
    def source_write_call_user_destroy (self, comp, file):
       if comp.destroy() == True:
          file.write ('   result = __python_init_destroy (componentHandle, "destroy");\n');
       else:
          file.write ('   result = XC_OK;\n');
-      file.write ('PyThreadState_Swap (__component);\n');
-      file.write ('Py_EndInterpreter (__component);\n');
-      file.write ('__component = NULL;\n');
-      file.write ('PyThreadState_Swap (__global);\n');
-      file.write ('Py_Finalize ();\n');
+      file.write ('   __python_finalize (componentHandle);\n');
 
    def write_queue_method_call (self, p, m, file):
       args = len(m.arguments());
@@ -231,6 +413,7 @@ class CodeGenerator(cgeneric.CodeGenerator):
       file.write ('   PyObject *object = xCOM_ImportGetSpecific (__component_handle, header->importHandle);\n');
       file.write ('   if (object != NULL) {\n');
       file.write ('      PyObject *oResult;\n');
+      file.write ('      PyEval_AcquireLock ();\n');
       file.write ('      PyThreadState_Swap (__component);\n');
       file.write ('      oResult = PyObject_CallMethodObjArgs (\n');
       file.write ('         object,\n');
@@ -245,10 +428,10 @@ class CodeGenerator(cgeneric.CodeGenerator):
       file.write ('      );\n');
       file.write ('      if (oResult != NULL) Py_DECREF (oResult);\n');
       file.write ('      else {\n');
-      file.write ('         PyErr_Print ();\n');
       file.write ('         if (error_cb != NULL) error_cb (header->importHandle, XC_ERR_INVAL, header->user_data);\n');
       file.write ('      }\n');
       file.write ('      PyThreadState_Swap (__global);\n');
+      file.write ('      PyEval_ReleaseLock ();\n');
       file.write ('   }\n');
       file.write ('   header->free (message);\n');
       file.write ('}\n\n');
@@ -281,22 +464,38 @@ class CodeGenerator(cgeneric.CodeGenerator):
       file.write ('   xc_handle_t componentHandle,\n'); 
       file.write ('   const char *name\n');
       file.write (') {\n');
-      file.write ('   xc_result_t result = XC_OK;\n');
-      file.write ('   PyObject *oDict = PyModule_GetDict (__module);\n');
-      file.write ('   PyObject *oFunc = PyDict_GetItemString (oDict, name);\n');
-      file.write ('   if (PyCallable_Check (oFunc)) {\n');
-      file.write ('      PyObject *oResult = PyObject_CallFunction (oFunc, "(I)", componentHandle);\n');
-      file.write ('      if (oResult != NULL) {\n');
-      file.write ('         result = PyInt_AsLong (oResult);\n');
+      file.write ('   xc_result_t result = __python_initialize (componentHandle);\n');
+      file.write ('   if (result == XC_OK) {\n');
+      file.write ('      PyEval_AcquireLock ();\n');
+      file.write ('      PyThreadState_Swap (__component);\n');
+      file.write ('      PyObject *oDict = PyModule_GetDict (__module);\n');
+      file.write ('      PyObject *oFunc = PyDict_GetItemString (oDict, name);\n');
+      file.write ('      if (PyCallable_Check (oFunc)) {\n');
+      file.write ('         PyObject *oResult = PyObject_CallFunction (oFunc, "(I)", componentHandle);\n');
+      file.write ('         if (oResult != NULL) {\n');
+      file.write ('            result = PyInt_AsLong (oResult);\n');
+      file.write ('         }\n');
       file.write ('      }\n');
+      file.write ('      else {\n');
+      file.write ('         result = XC_ERR_INVAL;\n');
+      file.write ('      }\n');
+      file.write ('      if (oFunc != NULL) Py_DECREF (oFunc);\n');
+      file.write ('      PyThreadState_Swap (__global);\n');
+      file.write ('      PyEval_ReleaseLock ();\n');
       file.write ('   }\n');
-      file.write ('   else {\n');
-      file.write ('      PyErr_Print ();\n');
-      file.write ('      result = XC_ERR_INVAL;\n');
-      file.write ('   }\n');
-      file.write ('   if (oFunc != NULL) Py_DECREF (oFunc);\n');
       file.write ('   return result;\n');
       file.write ('}\n\n');
+
+   def source_write_fill_import_object (self, p, file):
+      file.write ('         PyObject *oFunc;\n');
+      file.write ('         oFunc = PyLong_FromUnsignedLong (importHandle);\n');
+      file.write ('         PyObject_SetAttrString (oResult, "__import_handle", oFunc);\n');
+      intf = match.interface (self.m_interfaces, p.interface(), p.versionMajor(), p.versionMinor());
+      for m in intf.methods():
+         file.write ('         oFunc = PyCFunction_NewEx (&%s_%s_def, oResult, NULL);\n'%(
+            self.name_interface(intf),self.name_method(m)
+         ));
+         file.write ('         result = PyObject_SetAttrString (oResult, "%s", oFunc);\n'%(m.name()));
 
    def source_write_port_register (self, component, port, file):
       file.write ('static xc_result_t\n');
@@ -304,20 +503,27 @@ class CodeGenerator(cgeneric.CodeGenerator):
       file.write ('   xc_handle_t componentHandle,\n'); 
       file.write ('   xc_handle_t importHandle\n'); 
       file.write (') {\n');
-      file.write ('   xc_result_t result;\n');
-      file.write ('   PyObject *oResult = __python_register_unregister (\n');
-      file.write ('      componentHandle, importHandle, "%s"\n'%(self.name_port_register(port)));
-      file.write ('   );\n');
-      file.write ('   if (oResult != NULL) {\n');
-      file.write ('      result = xCOM_ImportSetSpecific (componentHandle, importHandle, oResult);\n');
-      file.write ('      if (result != XC_OK) Py_DECREF (oResult);\n');
-      file.write ('   }\n');
-      file.write ('   else {\n');
-      file.write ('      PyErr_Print ();\n');
-      file.write ('      result = XC_ERR_INVAL;\n');
+      file.write ('   xc_result_t result = __python_initialize (componentHandle);\n');
+      file.write ('   if (result == XC_OK) {\n');
+      file.write ('      PyObject *oResult = __python_register_unregister (\n');
+      file.write ('         componentHandle, importHandle, "%s"\n'%(self.name_port_register(port)));
+      file.write ('      );\n');
+      file.write ('      if (oResult != NULL) {\n');
+      if port.provided() == False:
+         self.source_write_fill_import_object (port, file);
+      file.write ('         result = xCOM_ImportSetSpecific (componentHandle, importHandle, oResult);\n');
+      file.write ('         if (result != XC_OK) Py_DECREF (oResult);\n');
+      file.write ('      }\n');
+      file.write ('      else {\n');
+      file.write ('         result = XC_ERR_INVAL;\n');
+      file.write ('      }\n');
       file.write ('   }\n');
       file.write ('   return result;\n');
       file.write ('}\n\n');
+
+   # Unconditionally set a port register method
+   def write_provided_port_register (self, p, file):
+      file.write ('         %s,\n'%(self.name_port_register(p)));
 
    # Unconditionally set a port unregister method
    def write_provided_port_unregister (self, p, file):
@@ -329,27 +535,26 @@ class CodeGenerator(cgeneric.CodeGenerator):
       file.write ('   xc_handle_t componentHandle,\n'); 
       file.write ('   xc_handle_t importHandle\n'); 
       file.write (') {\n');
-      file.write ('   xc_result_t result = XC_OK;\n');
-      file.write ('   PyObject *oResult;\n');
+      file.write ('   xc_result_t result = __python_initialize (componentHandle);\n');
+      file.write ('   if (result == XC_OK) {\n');
+      file.write ('      PyObject *oResult;\n');
       if port.unregister() == True:
-         file.write ('   oResult = __python_register_unregister (\n');
-         file.write ('      componentHandle, importHandle, "%s"\n'%(self.name_port_unregister(port)));
-         file.write ('   );\n');
-         file.write ('   if (oResult != NULL) Py_DECREF (oResult);\n');
-         file.write ('   else {\n');
-         file.write ('      PyErr_Print ();\n');
-         file.write ('      result = XC_ERR_INVAL;\n');
-         file.write ('   }\n');
-      file.write ('   oResult = xCOM_ImportGetSpecific (componentHandle, importHandle);\n');
-      file.write ('   if (oResult != NULL) {\n');
-      file.write ('      Py_DECREF (oResult);\n');
+         file.write ('      oResult = __python_register_unregister (\n');
+         file.write ('         componentHandle, importHandle, "%s"\n'%(self.name_port_unregister(port)));
+         file.write ('      );\n');
+         file.write ('      if (oResult != NULL) Py_DECREF (oResult);\n');
+         file.write ('      else {\n');
+         file.write ('         result = XC_ERR_INVAL;\n');
+         file.write ('      }\n');
+      file.write ('      oResult = xCOM_ImportGetSpecific (componentHandle, importHandle);\n');
+      file.write ('      if (oResult != NULL) {\n');
+      file.write ('         Py_DECREF (oResult);\n');
+      file.write ('      }\n');
       file.write ('   }\n');
       file.write ('   return result;\n');
       file.write ('}\n\n');
 
    def source_write_port_prologue (self, component, port, file):
-      if port.provided() == True:
-         if port.register() == True:
-            self.source_write_port_register (component, port, file);
-         self.source_write_port_unregister (component, port, file);
+      self.source_write_port_register (component, port, file);
+      self.source_write_port_unregister (component, port, file);
 

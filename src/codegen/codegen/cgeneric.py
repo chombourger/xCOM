@@ -520,21 +520,21 @@ class CodeGenerator:
       else:
          file.write ('   result = XC_OK;\n');
 
-   def write_component_queue_globals (self, comp, file): 
+   def source_write_globals (self, comp, file):
       file.write ('/* mutex to the message queue */\n');
-      file.write ('static pthread_mutex_t __lock;\n');
+      file.write ('static pthread_mutex_t __lock = PTHREAD_MUTEX_INITIALIZER;\n');
       file.write ('\n');
       file.write ('/* semaphore to wake-up the message queue thread. */\n');
       file.write ('static sem_t __sem;\n');
       file.write ('\n');
       file.write ('/* message queue thread. */\n');
-      file.write ('static pthread_t __%s_thread;\n'%(self.name_component(comp)));
+      file.write ('static pthread_t __queue_thread;\n');
       file.write ('\n');
       file.write ('/* boolean for controlling execution of the message queue thread. */\n');
-      file.write ('static bool __%s_quit;\n'%(self.name_component(comp)));
+      file.write ('static bool __quit;\n');
       file.write ('\n');
 
-   def source_write_queued_message_struct_members (self, comp, file):
+   def source_write_queued_message_struct_members (self, file):
       file.write ('   xc_clist_t node;\n');
       file.write ('   void *method;\n');
       file.write ('   void *result;\n');
@@ -547,14 +547,15 @@ class CodeGenerator:
    def source_write_init_destroy_prologue (self, component, file):
       return None;
 
-   def write_component_init_internal (self, comp, file):
-      self.write_component_queue_globals (comp, file);
-
+   def source_write_global_decls (self, file):
       file.write ('/* struct for queued messages. */\n');
       file.write ('struct __queued_message {\n');
-      self.source_write_queued_message_struct_members (comp, file);
+      self.source_write_queued_message_struct_members (file);
       file.write ('};\n');
       file.write ('\n');
+
+   def write_component_init_internal (self, comp, file):
+      self.source_write_globals (comp, file);
 
       file.write ('/* list of queued messages. */\n');
       file.write ('static xc_clist_t __queued_messages;\n');
@@ -569,7 +570,7 @@ class CodeGenerator:
       file.write ('   while (1) {\n');
       file.write ('      sem_wait (&__sem);\n');
       file.write ('      pthread_mutex_lock (&__lock);\n');
-      file.write ('      if (__%s_quit == false) {\n'%(self.name_component(comp)));
+      file.write ('      if (__quit == false) {\n');
       file.write ('         message = XC_CLIST_HEAD (&__queued_messages);\n');
       file.write ('         if (!XC_CLIST_END (&__queued_messages, message)) {\n');
       file.write ('            XC_CLIST_REMOVE (message);\n');
@@ -604,23 +605,16 @@ class CodeGenerator:
       self.source_write_call_user_init (comp, file);
       file.write ('   if (result == XC_OK) {\n');
       file.write ('      XC_CLIST_INIT (&__queued_messages);\n');
-      file.write ('      __%s_quit = false;\n'%(self.name_component(comp)));
+      file.write ('      __quit = false;\n');
       file.write ('      result = sem_init (&__sem, 0, 0);\n');
       file.write ('      if (result == 0) {\n');
-      file.write ('         result = pthread_mutex_init (&__lock, NULL);\n');
-      file.write ('         if (result == 0) {\n');
-      file.write ('            result = pthread_create (\n');
-      file.write ('               &__%s_thread,\n'%(self.name_component(comp)));
-      file.write ('               NULL,\n');
-      file.write ('               __%s_run,\n'%(self.name_component(comp)));
-      file.write ('               NULL\n');
-      file.write ('            );\n');
-      file.write ('            if (result != 0) {\n');
-      file.write ('               pthread_mutex_destroy (&__lock);\n');
-      file.write ('               sem_destroy (&__sem);\n');
-      file.write ('            }\n');
-      file.write ('         }\n');
-      file.write ('         else {\n');
+      file.write ('         result = pthread_create (\n');
+      file.write ('            &__queue_thread,\n');
+      file.write ('            NULL,\n');
+      file.write ('            __%s_run,\n'%(self.name_component(comp)));
+      file.write ('            NULL\n');
+      file.write ('         );\n');
+      file.write ('         if (result != 0) {\n');
       file.write ('            sem_destroy (&__sem);\n');
       file.write ('         }\n');
       file.write ('      }\n');
@@ -640,11 +634,10 @@ class CodeGenerator:
       file.write (') {\n');
       file.write ('   xc_result_t result;\n');
       file.write ('   componentHandle = componentHandle;\n');
-      file.write ('   __%s_quit = true;\n'%(self.name_component(comp)));
+      file.write ('   __quit = true;\n');
       file.write ('   sem_post (&__sem);\n');
-      file.write ('   pthread_join (__%s_thread, NULL);\n'%(self.name_component(comp)));
+      file.write ('   pthread_join (__queue_thread, NULL);\n');
       file.write ('   sem_destroy (&__sem);\n');
-      file.write ('   pthread_mutex_destroy (&__lock);\n');
       self.source_write_call_user_destroy (comp, file);
       file.write ('   return result;\n');
       file.write ('}\n');
@@ -673,6 +666,7 @@ class CodeGenerator:
       file.write ('#include <stdbool.h>\n');
       file.write ('#include <stdlib.h>\n');
       file.write ('#include <string.h>\n');
+      file.write ('\n');
       file.write ('#include "%s"\n'%(self.header_file()));
  
    def write_source (self):
@@ -681,8 +675,12 @@ class CodeGenerator:
       cfile.write ('/* Generated file, DO NOT EDIT! */\n\n');
       self.write_source_includes (cfile);
       cfile.write ('\n');
+
+      self.source_write_global_decls (cfile);
+
       for c in self.m_components:
          self.write_component_init_internal (c, cfile);
+
       self.write_provided_intf (cfile);
       self.write_required_intf (cfile);
       for c in self.m_components:
