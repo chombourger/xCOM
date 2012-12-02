@@ -42,6 +42,10 @@ AC_CHECK_FUNCS([gettimeofday memset])
 
 AX_LIB_EXPAT
 
+# Python
+AX_PYTHON
+AM_CONDITIONAL(HAVE_PYTHON, [test "$ax_python_header" = "yes"])
+
 PKG_CHECK_MODULES(                                                          
    [GLIB],                                                                  
    [glib-2.0 >= 2.24.0],                                                    
