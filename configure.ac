@@ -44,7 +44,7 @@ AX_LIB_EXPAT
 
 # Python
 AX_PYTHON
-AM_CONDITIONAL(HAVE_PYTHON, [test "$ax_python_header" = "yes"])
+AM_CONDITIONAL(HAVE_PYTHON, [test "$ax_python_header" != "no"])
 
 PKG_CHECK_MODULES(                                                          
    [GLIB],                                                                  
@@ -75,6 +75,7 @@ AC_CONFIG_FILES([
    examples/Makefile
    examples/hello/Makefile
    examples/hello-dbus-server/Makefile
+   examples/python/Makefile
 ])
 
 AC_OUTPUT
