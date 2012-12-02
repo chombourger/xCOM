@@ -470,6 +470,42 @@ xCOM_Import (
 XCOM_EXPORT;
 
 /**
+  * Set a user-specific value for the specified import and component. This
+  * should be used by xCOM language bindings to attach an object to the
+  * xCOM import either on the import or export side.
+  *
+  * @param componentHandle handle of the component (either server or client)
+  * @param importHandle handle of the import
+  * @param user_data data to be stored in the import
+  * @return XC_OK on success, an xCOM error code otherwise.
+  *
+  */
+xc_result_t
+xCOM_ImportSetSpecific (
+   xc_handle_t componentHandle,
+   xc_handle_t importHandle,
+   void *user_data
+)
+XCOM_EXPORT;
+
+/**
+  * Get the user-specific value for the specified import and component. The
+  * value should have been previously set with xCOM_ImportSetSpecific or
+  * NULL will be returned.
+  *
+  * @param componentHandle handle of the component (either server or client)
+  * @param importHandle handle of the import
+  * @return the user-defined value or NULL on error (or if not set).
+  *
+  */  
+void *
+xCOM_ImportGetSpecific (
+   xc_handle_t componentHandle,
+   xc_handle_t importHandle
+)
+XCOM_EXPORT;
+
+/**
   * Close a previously opened import. This method is to be called from the client
   * component (would not be safe from the server as it cannot assume how client(s)
   * are implemented).

@@ -39,6 +39,8 @@ struct Import {
    port_t *serverPortPtr;
    xc_interface_t *interfacePtr;
    char *portName;
+   void *clientData;
+   void *serverData;
 };
 
 xc_result_t

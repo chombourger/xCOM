@@ -113,6 +113,8 @@ import_new (
       importPtr->portName = NULL;
       importPtr->interfacePtr = NULL;
       importPtr->clientPortName = NULL;
+      importPtr->clientData = NULL;
+      importPtr->serverData = NULL;
 
       if (providerPtr->port != NULL) {
          importPtr->portName = strdup (providerPtr->port);
@@ -419,8 +421,13 @@ import_open (
 
      if (importPtr->state == IMPORT_STATE_UNREGISTERED) {
 
+         result = component_init (importPtr->serverComponentPtr);
+
          /* Register import. */
-         result = import_register (importPtr);
+         if (result == XC_OK) {
+            result = import_register (importPtr);
+         }
+
          if (result == XC_OK) {
             /* Allocate and provide client switch. */
             importPtr->interfacePtr = malloc (importPtr->serverPortPtr->interfaceSize);
@@ -435,10 +442,6 @@ import_open (
                TRACE1 (("Out of memory!"));
                result = XC_ERR_NOMEM;
             }
-         }
-
-         if (result == XC_OK) {
-            result = component_init (importPtr->serverComponentPtr);
          }
 
          if (result != XC_OK) {
@@ -638,5 +641,60 @@ xCOM_GetNextImport (
    import_module_unlock ();
    TRACE3 (("exiting with result=%u", nextHandle));
    return nextHandle;
+}
+
+xc_result_t
+xCOM_ImportSetSpecific (
+   xc_handle_t componentHandle,
+   xc_handle_t importHandle,
+   void *user_data
+) {
+   import_t *importPtr;
+   xc_result_t result = XC_ERR_NOENT;
+
+   TRACE3 (("called with importHandle=%u", importHandle));
+   import_module_lock ();
+
+   importPtr = handle_dir_get (importHandles, importHandle);
+   if ((importPtr != NULL) && (importPtr->state = IMPORT_STATE_OPENED)) {
+      if (componentHandle == importPtr->clientHandle) {
+         importPtr->clientData = user_data;
+         result = XC_OK;
+      }
+      else if (componentHandle == importPtr->serverHandle) {
+         importPtr->serverData = user_data;
+         result = XC_OK;
+      }
+   }
+
+   import_module_unlock ();
+   TRACE3 (("exiting with result=%d", result));
+   return result;
+}
+
+void *
+xCOM_ImportGetSpecific (
+   xc_handle_t componentHandle,
+   xc_handle_t importHandle
+) {
+   import_t *importPtr;
+   void *result = NULL;
+
+   TRACE3 (("called with importHandle=%u", importHandle));
+   import_module_lock ();
+
+   importPtr = handle_dir_get (importHandles, importHandle);
+   if ((importPtr != NULL) && (importPtr->state = IMPORT_STATE_OPENED)) {
+      if (componentHandle == importPtr->clientHandle) {
+         result = importPtr->clientData;
+      }
+      else if (componentHandle == importPtr->serverHandle) {
+         result = importPtr->serverData;
+      }
+   }
+
+   import_module_unlock ();
+   TRACE3 (("exiting with result=%p", result));
+   return result;
 }
 
