@@ -22,6 +22,7 @@ import sys;
 import optparse;
 
 from codegen import cgeneric;
+from codegen import cpython;
 from codegen import match;
 from codegen import parser;
 
@@ -35,6 +36,10 @@ def xc_codegen_main ():
    opt_parser.add_option ('-n', '--name',
                           metavar='NAME',
                           help='Base name for the output file(s)');
+   opt_parser.add_option ('-p', '--profile',
+                          metavar='PROFILE',
+                          default='c',
+                          help='profile to use for the code generator');
 
    # Parse command line
    (opts, args) = opt_parser.parse_args ();
@@ -88,7 +93,10 @@ def xc_codegen_main ():
 
    # Generate code
    if opts.name is not None:
-      gen = cgeneric.CodeGenerator (opts.name, components, interfaces, opts);
+      if opts.profile == 'python':
+         gen = cpython.CodeGenerator (opts.name, components, interfaces, opts);
+      elif opts.profile == 'c':
+         gen = cgeneric.CodeGenerator (opts.name, components, interfaces, opts);
       gen.write ();
                   
    print '# main()';

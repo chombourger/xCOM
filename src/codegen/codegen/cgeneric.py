@@ -313,6 +313,18 @@ class CodeGenerator:
                   file.write ('/* Handle for the loadtime import from port %s */\n'%(p.name()));
                   file.write ('xc_handle_t %s = XC_INVALID_HANDLE;\n\n'%(self.name_port_handle(p)));
 
+   def write_provided_port_register (self, p, file):
+      if p.register() == True:
+         file.write ('         %s,\n'%(self.name_port_register(p)));
+      else:
+         file.write ('         NULL,\n');
+
+   def write_provided_port_unregister (self, p, file):
+      if p.unregister() == True:
+         file.write ('         %s\n'%(self.name_port_unregister(p)));
+      else:
+         file.write ('         NULL\n');
+
    def write_provided_ports_init (self, comp, file):
       for p in comp.ports():
          if p.provided() == False:
@@ -325,14 +337,8 @@ class CodeGenerator:
          file.write ('         sizeof (%s),\n'%(self.name_port(p)));
          file.write ('         NULL,\n'); # FIXME: remove in framework (used to be proto)
          file.write ('         NULL,\n'); # TODO: pass encoded interface spec
-         if p.register() == True:
-            file.write ('         %s,\n'%(self.name_port_register(p)));
-         else:
-            file.write ('         NULL,\n');
-         if p.unregister() == True:
-            file.write ('         %s\n'%(self.name_port_unregister(p)));
-         else:
-            file.write ('         NULL\n');
+         self.write_provided_port_register (p, file);
+         self.write_provided_port_unregister (p, file);
          file.write ('      ),\n');
          
    def write_required_ports_init (self, comp, file):
@@ -368,9 +374,69 @@ class CodeGenerator:
          file.write ('         %s /* flags */\n'%(self.port_flags(p)));
          file.write ('      ),\n');
 
+   def queue_arg_type (self, a):
+      return self.name_type(a.type(),a.direction());
+
+   def queue_free_arg_expr (self, a, expr):
+      if a.type() == 's':
+         return 'free ((char *) message->%s);'%(self.name_argument(a));
+      else:
+         return '';
+
+   def write_queue_copy_args_prologue (self, file):
+      return None;     
+
+   def write_queue_copy_args_epilogue (self, m, file):
+      return None;     
+
+   def queue_copy_arg_expr (self, a, indent):
+      result='';
+      if a.type() == 's':
+         result += indent + 'if ((result == XC_OK) && (%s != NULL)) {\n'%(self.name_argument(a));
+         result += indent + '   message->%s = strdup (%s);\n'%(self.name_argument(a),self.name_argument(a));
+         result += indent + '   if (message->%s == NULL) {\n'%(self.name_argument(a));
+         result += indent + '      result = XC_ERR_NOMEM;\n';
+         result += indent + '   }\n';
+         result += indent + '}\n';
+      else:
+         result += indent + 'message->%s = %s;\n'%(self.name_argument(a),self.name_argument(a));
+      return result;
+
+   def write_queue_method_call (self, p, m, file):
+      args = len(m.arguments());
+      file.write('static void\n');
+      file.write('__call_%s (\n'%(self.name_provided_method(p,m)));
+      file.write('   void *_message\n');
+      file.write(') {\n');
+      file.write('   struct __queued_message *header = _message;\n');
+      if args > 0:
+         file.write('   struct __%s_message *message = _message;\n'%(self.name_provided_method(p,m)));
+      else:
+         file.write('   struct __queued_message *message = _message;\n');
+      file.write ('   void (* result_cb) %s = header->result;\n'%(self.proto_method_result(m, '   ')));
+      file.write ('   void (* error_cb) %s = header->error;\n'%(self.proto_method_error(m, '   ')));
+      file.write('   xc_result_t result = %s (\n'%(self.name_provided_method(p,m)));
+      file.write('      header->importHandle');
+      for a in m.arguments():
+         if a.direction() == 'in':
+            file.write(',\n      message->%s'%(self.name_argument(a)));
+      file.write(',\n      result_cb');
+      file.write(',\n      error_cb');
+      file.write(',\n      header->user_data\n');
+      file.write('   );\n');
+      file.write('   header->free (message);\n');
+      file.write('}\n\n');
+
+   def source_write_port_prologue (self, component, port, file):
+      return None;
+
+   def source_write_free_message (self, m, file):
+      file.write('   free (message);\n');
+
    def write_queued_message_structs (self, file):
       for c in self.m_components:
          for p in c.ports():
+            self.source_write_port_prologue (c, p, file);
             if p.provided() == True:
                intf = match.interface (self.m_interfaces, p.interface(), p.versionMajor(), p.versionMinor());
                for m in intf.methods():
@@ -381,7 +447,7 @@ class CodeGenerator:
                      file.write('   struct __queued_message __queued_message;\n');
                      for a in m.arguments():
                         if a.direction() == 'in':
-                           file.write('   %s %s;\n'%(self.name_type(a.type(),a.direction()), self.name_argument(a)));
+                           file.write('   %s %s;\n'%(self.queue_arg_type(a), self.name_argument(a)));
                      file.write('};\n\n');
 
                      file.write('static void\n');
@@ -389,35 +455,15 @@ class CodeGenerator:
                      file.write('   void *_message\n');
                      file.write(') {\n');
                      file.write('   struct __%s_message *message = _message;\n'%(self.name_provided_method(p,m)));
+                     file.write('   struct __queued_message *header = _message;\n');
                      for a in m.arguments():
-                        if a.type() == 's':
-                           file.write('   free ((char *) message->%s);\n'%(self.name_argument(a)));
-                     file.write('   free (message);\n');
+                        free_expr = self.queue_free_arg_expr (a, 'message->%s'%(self.name_argument(a)));
+                        if free_expr != '':
+                           file.write('   %s\n'%(free_expr));
+                     self.source_write_free_message (m, file);
                      file.write('}\n\n');
 
-                  file.write('static void\n');
-                  file.write('__call_%s (\n'%(self.name_provided_method(p,m)));
-                  file.write('   void *_message\n');
-                  file.write(') {\n');
-                  file.write('   struct __queued_message *header = _message;\n');
-                  if args > 0:
-                     file.write('   struct __%s_message *message = _message;\n'%(self.name_provided_method(p,m)));
-                  else:
-                     file.write('   struct __queued_message *message = _message;\n');
-                  file.write ('   xc_result_t (* method) %s = header->method;\n'%(self.proto_method(m, '   ')));
-                  file.write ('   void (* result_cb) %s = header->result;\n'%(self.proto_method_result(m, '   ')));
-                  file.write ('   void (* error_cb) %s = header->error;\n'%(self.proto_method_error(m, '   ')));
-                  file.write('   xc_result_t result = method (\n');
-                  file.write('      header->importHandle');
-                  for a in m.arguments():
-                     if a.direction() == 'in':
-                        file.write(',\n      message->%s'%(self.name_argument(a)));
-                  file.write(',\n      result_cb');
-                  file.write(',\n      error_cb');
-                  file.write(',\n      header->user_data\n');
-                  file.write('   );\n');
-                  file.write('   header->free (message);\n');
-                  file.write('}\n\n');
+                  self.write_queue_method_call (p, m, file);
 
                   file.write('static xc_result_t\n');
                   file.write('__queue_%s '%(self.name_provided_method(p,m)));
@@ -433,26 +479,19 @@ class CodeGenerator:
                   file.write('   if (message != NULL) {\n');
                   file.write('      memset (message, 0, sizeof (*message));\n');
                   file.write('      header = (struct __queued_message *) message;\n');
-                  file.write('      header->method = %s;\n'%(self.name_provided_method(p,m)));
                   file.write('      header->result = %s_result;\n'%(self.name_method(m)));
                   file.write('      header->error = %s_error;\n'%(self.name_method(m)));
                   file.write('      header->user_data = user_data;\n');
                   file.write('      header->handler = __call_%s;\n'%(self.name_provided_method(p,m)));
                   file.write('      header->importHandle = importHandle;\n');
+                  self.write_queue_copy_args_prologue (file);
                   if args > 0:
                      file.write('      header->free = __free_%s;\n'%(self.name_provided_method(p,m)));
                   else:
                      file.write('      header->free = free;\n');
                   for a in m.arguments():
-                     if a.type() == 's':
-                        file.write('      if ((result == XC_OK) && (%s != NULL)) {\n'%(self.name_argument(a)));
-                        file.write('         message->%s = strdup (%s);\n'%(self.name_argument(a),self.name_argument(a)));
-                        file.write('         if (message->%s == NULL) {\n'%(self.name_argument(a)));
-                        file.write('            result = XC_ERR_NOMEM;\n');
-                        file.write('         }\n');
-                        file.write('      }\n');
-                     else:
-                        file.write('      message->%s = %s;\n'%(self.name_argument(a),self.name_argument(a)));
+                     file.write(self.queue_copy_arg_expr(a, '      '));
+                  self.write_queue_copy_args_epilogue (m, file);
                   file.write('      if (result == XC_OK) {\n');
                   file.write('         pthread_mutex_lock (&__lock);\n');
                   file.write('         XC_CLIST_ADDTAIL (&__queued_messages, message);\n');
@@ -468,8 +507,20 @@ class CodeGenerator:
                   file.write('   }\n');
                   file.write('   return result;\n');
                   file.write('}\n\n');
- 
-   def write_component_init_internal (self, comp, file):
+
+   def source_write_call_user_init (self, comp, file):
+      if comp.init() == True:
+         file.write ('   result = %s (componentHandle);\n'%(self.name_component_init(comp)));
+      else:
+         file.write ('   result = XC_OK;\n');
+
+   def source_write_call_user_destroy (self, comp, file):
+      if comp.destroy() == True:
+         file.write ('   result = %s (componentHandle);\n'%(self.name_component_destroy(comp)));
+      else:
+         file.write ('   result = XC_OK;\n');
+
+   def write_component_queue_globals (self, comp, file): 
       file.write ('/* mutex to the message queue */\n');
       file.write ('static pthread_mutex_t __lock;\n');
       file.write ('\n');
@@ -482,8 +533,8 @@ class CodeGenerator:
       file.write ('/* boolean for controlling execution of the message queue thread. */\n');
       file.write ('static bool __%s_quit;\n'%(self.name_component(comp)));
       file.write ('\n');
-      file.write ('/* struct for queued messages. */\n');
-      file.write ('struct __queued_message {\n');
+
+   def source_write_queued_message_struct_members (self, comp, file):
       file.write ('   xc_clist_t node;\n');
       file.write ('   void *method;\n');
       file.write ('   void *result;\n');
@@ -492,8 +543,19 @@ class CodeGenerator:
       file.write ('   void (* free) (void *_message);\n');
       file.write ('   void (* handler) (void *_message);\n');
       file.write ('   xc_handle_t importHandle;\n');
+
+   def source_write_init_destroy_prologue (self, component, file):
+      return None;
+
+   def write_component_init_internal (self, comp, file):
+      self.write_component_queue_globals (comp, file);
+
+      file.write ('/* struct for queued messages. */\n');
+      file.write ('struct __queued_message {\n');
+      self.source_write_queued_message_struct_members (comp, file);
       file.write ('};\n');
       file.write ('\n');
+
       file.write ('/* list of queued messages. */\n');
       file.write ('static xc_clist_t __queued_messages;\n');
       file.write ('\n');
@@ -529,6 +591,8 @@ class CodeGenerator:
       file.write ('}\n');
       file.write ('\n');
 
+      self.source_write_init_destroy_prologue (comp, file);
+
       file.write ('/* %s component init(). */\n'%(comp.name()));
       file.write ('static xc_result_t\n');
       file.write ('__%s (\n'%(self.name_component_init(comp)));
@@ -537,10 +601,7 @@ class CodeGenerator:
       file.write ('   xc_result_t result;\n');
       file.write ('   componentHandle = componentHandle;\n');
       file.write ('\n');
-      if comp.init() == True:
-         file.write ('   result = %s (componentHandle);\n'%(self.name_component_init(comp)));
-      else:
-         file.write ('   result = XC_OK;\n');
+      self.source_write_call_user_init (comp, file);
       file.write ('   if (result == XC_OK) {\n');
       file.write ('      XC_CLIST_INIT (&__queued_messages);\n');
       file.write ('      __%s_quit = false;\n'%(self.name_component(comp)));
@@ -564,8 +625,7 @@ class CodeGenerator:
       file.write ('         }\n');
       file.write ('      }\n');
       file.write ('      if (result != 0) {\n');
-      if comp.destroy() == True:
-         file.write ('         result = %s (componentHandle);\n'%(self.name_component_destroy(comp)));
+      self.source_write_call_user_destroy (comp, file);
       file.write ('         result = XC_ERR_NOMEM;\n');
       file.write ('      }\n');
       file.write ('   }\n');
@@ -585,10 +645,7 @@ class CodeGenerator:
       file.write ('   pthread_join (__%s_thread, NULL);\n'%(self.name_component(comp)));
       file.write ('   sem_destroy (&__sem);\n');
       file.write ('   pthread_mutex_destroy (&__lock);\n');
-      if comp.destroy() == True:
-         file.write ('   result = %s (componentHandle);\n'%(self.name_component_destroy(comp)));
-      else:
-         file.write ('   result = XC_OK;\n');
+      self.source_write_call_user_destroy (comp, file);
       file.write ('   return result;\n');
       file.write ('}\n');
       file.write ('\n');
@@ -608,18 +665,22 @@ class CodeGenerator:
       file.write ('      { NULL, NULL, 0, NULL, NULL, NULL, 0, NULL, NULL, NULL }\n');
       file.write ('   }\n');
       file.write ('};\n\n');
-                  
+
+   def write_source_includes (self, file):
+      file.write ('#include <xCOM/clist.h>\n');
+      file.write ('#include <pthread.h>\n');
+      file.write ('#include <semaphore.h>\n');
+      file.write ('#include <stdbool.h>\n');
+      file.write ('#include <stdlib.h>\n');
+      file.write ('#include <string.h>\n');
+      file.write ('#include "%s"\n'%(self.header_file()));
+ 
    def write_source (self):
       filename = self.source_file();
       cfile = open (filename, "w");
       cfile.write ('/* Generated file, DO NOT EDIT! */\n\n');
-      cfile.write ('#include <xCOM/clist.h>\n');
-      cfile.write ('#include <pthread.h>\n');
-      cfile.write ('#include <semaphore.h>\n');
-      cfile.write ('#include <stdbool.h>\n');
-      cfile.write ('#include <stdlib.h>\n');
-      cfile.write ('#include <string.h>\n');
-      cfile.write ('#include "%s"\n\n'%(self.header_file()));
+      self.write_source_includes (cfile);
+      cfile.write ('\n');
       for c in self.m_components:
          self.write_component_init_internal (c, cfile);
       self.write_provided_intf (cfile);
