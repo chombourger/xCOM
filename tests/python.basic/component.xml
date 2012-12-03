@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="tests.python.basic" version-major="1" version-minor="0" init="false" destroy="false">
+   <port name="test_in_s" interface="xcom.ITest"></port>
+   <port name="intf_in_s" interface="tests.in_s" required="true" loadtime="true"></port>
+</component>

@@ -76,6 +76,9 @@ AC_CONFIG_FILES([
    examples/hello/Makefile
    examples/hello-dbus-server/Makefile
    examples/python/Makefile
+   tests/Makefile
+   tests/python.basic/Makefile
+   tests/python.basic/tests.in_s/Makefile
 ])
 
 AC_OUTPUT
