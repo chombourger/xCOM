@@ -284,6 +284,7 @@ class CodeGenerator(cgeneric.CodeGenerator):
       file.write ('__python_initialize (\n');
       file.write ('   xc_handle_t componentHandle\n');
       file.write (') {\n');
+      file.write ('   xc_result_t result = XC_OK;\n');
       file.write ('   pthread_mutex_lock (&__lock);\n');
       file.write ('   if (__python_initialized == false) {\n');
       file.write ('      Py_Initialize ();\n');
@@ -297,12 +298,15 @@ class CodeGenerator(cgeneric.CodeGenerator):
       file.write ('         strcat (syspath, "/Code/python\')\\n");\n');
       file.write ('         PyRun_SimpleString (syspath);\n');
       file.write ('         __module = PyImport_ImportModule ("%s");\n'%(comp.name()));
-      file.write ('         __python_initialized = true;\n');
+      file.write ('         if (__module != NULL) {\n');
+      file.write ('            __python_initialized = true;\n');
+      file.write ('         }\n');
+      file.write ('         else result = XC_ERR_NOENT;\n');
       file.write ('      }\n');
       file.write ('      PyEval_ReleaseLock ();\n');
       file.write ('   }\n');
       file.write ('   pthread_mutex_unlock (&__lock);\n');
-      file.write ('   return XC_OK;\n');
+      file.write ('   return result;\n');
       file.write ('}\n\n');
  
       file.write ('static void\n');
@@ -493,7 +497,7 @@ class CodeGenerator(cgeneric.CodeGenerator):
  
    def source_write_call_user_init (self, comp, file):
       file.write ('   __component_handle = componentHandle;\n');
-      self.source_write_call_python_init (comp, file, '         ');
+      self.source_write_call_python_init (comp, file, '   ');
 
    def source_write_call_user_destroy (self, comp, file):
       if comp.destroy() == True:
