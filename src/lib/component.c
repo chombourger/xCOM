@@ -675,6 +675,12 @@ component_loadtime_import (
       &matchCount
    );
 
+   /* Query succeeded but no results? */
+   if ((result == XC_OK) && (matchCount == 0)) {
+      /* Set error, may be cleared later if the import is optional. */
+      result = XC_ERR_NOENT;
+   }
+
    if (result == XC_OK) {
       for (i=0; i<matchCount; i++) {
          result = xCOM_QueryNext (queryHandle, &importHandle);
