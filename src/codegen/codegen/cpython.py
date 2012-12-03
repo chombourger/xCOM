@@ -49,6 +49,30 @@ class CodeGenerator(cgeneric.CodeGenerator):
                    return True;
       return False;
 
+   def native_type_to_python (self, type):
+      if type == 'y':
+         return 'PyInt_FromLong';
+      elif type == 'b':
+         return 'PyBool_FromLong';
+      elif type == 'n':
+         return 'PyInt_FromLong';
+      elif type == 'q':
+         return 'PyLong_FromUnsignedLong';
+      elif type == 'i':
+         return 'PyInt_FromLong';
+      elif type == 'u':
+         return 'PyLong_FromUnsignedLong';
+      elif type == 'x':
+         return 'PyLong_FromLongLong';
+      elif type == 't':
+         return 'PyLong_FromUnsignedLongLong';
+      elif type == 'd':
+         return 'PyFloat_FromDouble';
+      elif type == 's':
+         return 'PyString_FromString';
+      # TODO everything else to default to variant type
+      return None;
+
    def python_to_native_type (self, type):
       if type == 'y':
          return '(uint8_t) PyInt_AsLong';
@@ -73,80 +97,164 @@ class CodeGenerator(cgeneric.CodeGenerator):
       # TODO everything else to default to variant type
       return None;
 
+   def out_arguments (self, m):
+      count = 0;
+      for a in m.arguments():
+         if a.direction() == 'out':
+            count = count + 1;
+      return count;
+
+   def source_write_free_out_arg (self, a, file):
+      if a.type() == 's':
+         file.write ('   free (%s);\n'%(self.name_argument(a)));
+
+   def source_write_method_result_wrapper (self, m, file):
+      intf = m.parent();
+
+      # Prototype
+      file.write ('static void\n');
+      file.write ('%s_%s_result (\n'%(self.name_interface(intf),self.name_method(m)));
+      file.write ('   xc_handle_t importHandle,\n');
+      file.write ('   xc_result_t error,\n');
+      for a in m.arguments():
+         if a.direction() == 'out':
+            file.write ('   %s %s,\n'%(self.name_type(a.type(),a.direction()),self.name_argument(a)));
+      file.write ('   void *user_data\n');
+      file.write (') {\n');
+
+      # Local variables
+      file.write ('   PyObject *oContext, *oSuccess, *oUserData, *oImportHandle, *oError, *oResult;\n');
+      for a in m.arguments():
+         if a.direction() == 'out':
+            file.write ('   PyObject *py_%s;\n'%(self.name_argument(a)));
+
+      file.write ('   oContext  = user_data;\n');
+      file.write ('   PyEval_AcquireLock ();\n');
+      file.write ('   PyThreadState_Swap (__component);\n');
+
+      file.write ('   oSuccess = PyTuple_GetItem (oContext, 0);\n');
+      file.write ('   oUserData = PyTuple_GetItem (oContext, 2);\n');
+      file.write ('   oImportHandle = PyInt_FromLong (importHandle);\n');
+      file.write ('   oError = PyInt_FromLong (error);\n');
+      for a in m.arguments():
+         if a.direction() == 'out':
+            file.write ('   py_%s = %s (%s);\n'%(
+               self.name_argument(a),
+	       self.native_type_to_python(a.type()),
+               self.name_argument(a)
+            ));
+            self.source_write_free_out_arg (a, file);
+
+      file.write ('   if (PyCallable_Check (oSuccess)) {\n');
+      file.write ('      oResult = PyObject_CallFunctionObjArgs (\n');
+      file.write ('         oSuccess,\n');
+      file.write ('         oImportHandle,\n');
+      file.write ('         oError,\n');
+      for a in m.arguments():
+         if a.direction() == 'out':
+             file.write ('         py_%s,\n'%(self.name_argument(a)));
+      file.write ('         oUserData,\n');
+      file.write ('         NULL\n');
+      file.write ('      );\n');
+      file.write ('      if (oResult != NULL) Py_DECREF (oResult);\n');
+      file.write ('   }\n');
+      for a in m.arguments():
+         if a.direction() == 'out':
+            file.write ('   Py_DECREF (py_%s);\n'%(self.name_argument(a)));
+      file.write ('   Py_DECREF (oContext);\n');
+      file.write ('   PyThreadState_Swap (__global);\n');
+      file.write ('   PyEval_ReleaseLock ();\n');
+      file.write ('}\n\n');
+
+   def source_write_method_wrapper (self, m, file):
+      intf = m.parent();
+
+      # Any out arguments?
+      oargs = self.out_arguments (m);
+      if oargs > 0:
+         self.source_write_method_result_wrapper (m, file);
+
+      # Prototype
+      file.write ('/* %s: %s */\n'%(intf.name(), m.name()));
+      file.write ('static PyObject *\n');
+      file.write ('%s_%s (\n'%(self.name_interface(intf),self.name_method(m)));
+      file.write ('   PyObject *oSelf,\n');
+      file.write ('   PyObject *oArgs\n');
+      file.write (') {\n');
+
+      # Local variables
+      file.write ('   PyObject *oImportHandle;\n');
+      file.write ('   xc_handle_t importHandle;\n');
+      file.write ('   %s_t *switchPtr;\n'%(self.name_interface (intf)));
+      for a in m.arguments():
+         if a.direction() == 'in':
+            file.write ('   PyObject *py_%s;\n'%(self.name_argument(a)));
+            file.write ('   %s %s;\n'%(self.name_type(a.type(),a.direction()),self.name_argument(a)));
+      file.write ('   PyObject *oSuccess;\n');
+      file.write ('   PyObject *oFailure;\n');
+      file.write ('   PyObject *oUserData;\n');
+      file.write ('   PyObject *oTuple;\n');
+      file.write ('\n');
+
+      file.write ('   /* Get import handle and switch */\n');
+      file.write ('   oImportHandle = PyObject_GetAttrString (oSelf, "__import_handle");\n');
+      file.write ('   importHandle  = PyLong_AsUnsignedLong (oImportHandle);\n');
+      file.write ('   switchPtr     = (%s_t *) xCOM_GetSwitch (importHandle);\n'%(
+         self.name_interface(intf)
+      ));
+      file.write ('\n');
+
+      file.write ('   /* Get argument values. */\n');
+      i = 0;
+      for a in m.arguments():
+         if a.direction() == 'in':
+            file.write ('   py_%s = PyTuple_GetItem (oArgs, %d);\n'%(self.name_argument(a), i));
+            file.write ('   %s = %s (py_%s);\n'%(
+               self.name_argument(a),
+               self.python_to_native_type (a.type()),
+               self.name_argument(a)
+            ));
+            i = i + 1;
+      file.write ('   oTuple    = PyTuple_New (3);\n');
+      file.write ('   oSuccess  = PyTuple_GetItem (oArgs, %d);\n'%(i));
+      file.write ('   PyTuple_SetItem (oTuple, 0, oSuccess);\n');
+      i = i + 1;
+      file.write ('   oFailure  = PyTuple_GetItem (oArgs, %d);\n'%(i));
+      file.write ('   PyTuple_SetItem (oTuple, 1, oFailure);\n');
+      i = i + 1;
+      file.write ('   oUserData = PyTuple_GetItem (oArgs, %d);\n'%(i));
+      file.write ('   PyTuple_SetItem (oTuple, 2, oUserData);\n');
+      i = i + 1;
+      file.write ('\n');
+
+      file.write ('   /* Call imported method. */\n');
+      file.write ('   switchPtr->%s (\n'%(self.name_method(m)));
+      file.write ('      importHandle,\n');
+      for a in m.arguments():
+         if a.direction() == 'in':
+            file.write ('      %s,\n'%(self.name_argument(a)));
+      if oargs > 0:
+         file.write ('      %s_%s_result,\n'%(self.name_interface(intf),self.name_method(m)));
+      else:
+         file.write ('      native_method_result_to_python,\n');
+      file.write ('      native_method_error_to_python,\n');
+      file.write ('      oTuple\n');
+      file.write ('   );\n');
+      file.write ('   Py_RETURN_NONE;\n');
+      file.write ('}\n');
+      file.write ('\n');
+
+      file.write ('static PyMethodDef %s_%s_def = {\n'%(self.name_interface(intf),self.name_method(m)));
+      file.write ('   "%s",\n'%(m.name()));
+      file.write ('   %s_%s,\n'%(self.name_interface(intf),self.name_method(m)));
+      file.write ('   METH_VARARGS,\n');
+      file.write ('   NULL\n');
+      file.write ('};\n');
+      file.write ('\n');
+
    def source_write_interface_wrappers (self, intf, file):
       for m in intf.methods():
-         file.write ('/* %s: %s */\n'%(intf.name(), m.name()));
-         file.write ('static PyObject *\n');
-         file.write ('%s_%s (\n'%(self.name_interface(intf),self.name_method(m)));
-         file.write ('   PyObject *oSelf,\n');
-         file.write ('   PyObject *oArgs\n');
-         file.write (') {\n');
-         file.write ('   PyObject *oImportHandle;\n');
-         file.write ('   xc_handle_t importHandle;\n');
-         file.write ('   %s_t *switchPtr;\n'%(self.name_interface (intf)));
-         for a in m.arguments():
-            if a.direction() == 'in':
-               file.write ('   PyObject *py_%s;\n'%(self.name_argument(a)));
-               file.write ('   %s %s;\n'%(self.name_type(a.type(),a.direction()),self.name_argument(a)));
-         file.write ('   PyObject *oSuccess;\n');
-         file.write ('   PyObject *oFailure;\n');
-         file.write ('   PyObject *oUserData;\n');
-         file.write ('   PyObject *oTuple;\n');
-         file.write ('\n');
-
-         file.write ('   /* Get import handle and switch */\n');
-         file.write ('   oImportHandle = PyObject_GetAttrString (oSelf, "__import_handle");\n');
-         file.write ('   importHandle  = PyLong_AsUnsignedLong (oImportHandle);\n');
-         file.write ('   switchPtr     = (%s_t *) xCOM_GetSwitch (importHandle);\n'%(
-            self.name_interface(intf)
-         ));
-         file.write ('\n');
-
-         file.write ('   /* Get argument values. */\n');
-         i = 0;
-         for a in m.arguments():
-            if a.direction() == 'in':
-               file.write ('   py_%s = PyTuple_GetItem (oArgs, %d);\n'%(self.name_argument(a), i));
-               file.write ('   %s = %s (py_%s);\n'%(
-                  self.name_argument(a),
-                  self.python_to_native_type (a.type()),
-                  self.name_argument(a)
-               ));
-               i = i + 1;
-         file.write ('   oTuple    = PyTuple_New (3);\n');
-         file.write ('   oSuccess  = PyTuple_GetItem (oArgs, %d);\n'%(i));
-         file.write ('   PyTuple_SetItem (oTuple, 0, oSuccess);\n');
-         i = i + 1;
-         file.write ('   oFailure  = PyTuple_GetItem (oArgs, %d);\n'%(i));
-         file.write ('   PyTuple_SetItem (oTuple, 1, oFailure);\n');
-         i = i + 1;
-         file.write ('   oUserData = PyTuple_GetItem (oArgs, %d);\n'%(i));
-         file.write ('   PyTuple_SetItem (oTuple, 2, oUserData);\n');
-         i = i + 1;
-         file.write ('\n');
-
-         # TODO handle methods with out arguments
-         file.write ('   /* Call imported method. */\n');
-         file.write ('   switchPtr->%s (\n'%(self.name_method(m)));
-         file.write ('      importHandle,\n');
-         for a in m.arguments():
-            if a.direction() == 'in':
-               file.write ('      %s,\n'%(self.name_argument(a)));
-         file.write ('      native_method_result_to_python,\n');
-         file.write ('      native_method_error_to_python,\n');
-         file.write ('      oTuple\n');
-         file.write ('   );\n');
-         file.write ('   Py_RETURN_NONE;\n');
-         file.write ('}\n');
-         file.write ('\n');
-
-         file.write ('static PyMethodDef %s_%s_def = {\n'%(self.name_interface(intf),self.name_method(m)));
-         file.write ('   "%s",\n'%(m.name()));
-         file.write ('   %s_%s,\n'%(self.name_interface(intf),self.name_method(m)));
-         file.write ('   METH_VARARGS,\n');
-         file.write ('   NULL\n');
-         file.write ('};\n');
-         file.write ('\n');
+         self.source_write_method_wrapper (m, file);
 
    def source_write_wrappers (self, file):
       for i in self.m_interfaces:
@@ -446,15 +554,43 @@ class CodeGenerator(cgeneric.CodeGenerator):
       file.write ('   PyObject *oImportHandle;\n');
       file.write ('   xc_handle_t importHandle;\n');
       file.write ('   PyObject *oResult;\n');
+      for a in m.arguments():
+         file.write ('   PyObject *py_%s;\n'%(self.name_argument(a)));
+         file.write ('   %s %s;\n'%(self.name_type(a.type(),a.direction()),self.name_argument(a)));
       file.write ('   xc_result_t result;\n');
       file.write ('   void (* result_cb) %s;\n'%(self.proto_method_result(m, '   ')));
+
       file.write ('   oImportHandle = PyTuple_GetItem (oArgs, 0);\n');
       file.write ('   importHandle  = PyInt_AsUnsignedLongMask (oImportHandle);\n');
+      file.write ('   Py_DECREF (oImportHandle);\n');
+
       file.write ('   oResult = PyTuple_GetItem (oArgs, 1);\n');
       file.write ('   result  = PyInt_AsLong (oResult);\n');
-      file.write ('   header   = PyCObject_AsVoidPtr (oSelf);\n');
+      file.write ('   Py_DECREF (oResult);\n');
+
+      i = 1;
+      for a in m.arguments():
+         if a.direction() == 'out':
+            i = i + 1;
+            file.write ('   py_%s = PyTuple_GetItem (oArgs, %d);\n'%(self.name_argument(a),i));
+            file.write ('   %s = %s (py_%s);\n'%(
+               self.name_argument(a),
+               self.python_to_native_type(a.type()),
+               self.name_argument(a)
+            ));
+            if a.type() == 's':
+               file.write ('   %s = strdup (%s);\n'%(self.name_argument(a), self.name_argument(a)));
+
+      file.write ('   header = PyCObject_AsVoidPtr (oSelf);\n');
       file.write ('   result_cb = header->result;\n');
-      file.write ('   result_cb (importHandle, result, header->user_data);\n');
+      file.write ('   result_cb (\n');
+      file.write ('      importHandle,\n');
+      file.write ('      result,\n');
+      for a in m.arguments():
+         if a.direction() == 'out':
+            file.write ('      %s,\n'%(self.name_argument(a)));
+      file.write ('      header->user_data\n');
+      file.write ('   );\n');
       file.write ('   Py_RETURN_NONE;\n');
       file.write ('}\n\n');
 

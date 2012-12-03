@@ -457,9 +457,10 @@ class CodeGenerator:
                      file.write('   struct __%s_message *message = _message;\n'%(self.name_provided_method(p,m)));
                      file.write('   struct __queued_message *header = _message;\n');
                      for a in m.arguments():
-                        free_expr = self.queue_free_arg_expr (a, 'message->%s'%(self.name_argument(a)));
-                        if free_expr != '':
-                           file.write('   %s\n'%(free_expr));
+                        if a.direction() == 'in':
+                           free_expr = self.queue_free_arg_expr (a, 'message->%s'%(self.name_argument(a)));
+                           if free_expr != '':
+                              file.write('   %s\n'%(free_expr));
                      self.source_write_free_message (m, file);
                      file.write('}\n\n');
 
@@ -490,7 +491,8 @@ class CodeGenerator:
                   else:
                      file.write('      header->free = free;\n');
                   for a in m.arguments():
-                     file.write(self.queue_copy_arg_expr(a, '      '));
+                     if a.direction() == 'in':
+                        file.write(self.queue_copy_arg_expr(a, '      '));
                   self.write_queue_copy_args_epilogue (m, file);
                   file.write('      if (result == XC_OK) {\n');
                   file.write('         pthread_mutex_lock (&__lock);\n');

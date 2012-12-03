@@ -21,6 +21,7 @@
 #include <xCOM.h>
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "component.h"
 #include "hello-dbus.h"
@@ -28,6 +29,27 @@
 static guint bus = 0;
 static Hello *hello;
 static examples_ihello_t *helloImpl = NULL;
+
+static void
+error (
+   xc_handle_t importHandle,
+   xc_result_t result,
+   void *data
+) {
+   printf ("error %u %d %p\n", importHandle, result, data);
+}
+
+static void
+result (
+   xc_handle_t importHandle,
+   xc_result_t result,
+   char *response,
+   void *data
+) {
+   printf ("result %u %d %p\n", importHandle, result, data);
+   printf ("response: '%s'\n", response);
+   free (response);
+}
 
 static gboolean
 on_handle_say (
@@ -38,7 +60,8 @@ on_handle_say (
 ) {
 
    /* Call the actual IHello.Say() method. */
-   helloImpl->Say (HelloImportHandle, greeting, NULL, NULL, NULL);
+   printf ("c> calling Say (%p)\n", hello);
+   helloImpl->Say (HelloImportHandle, greeting, result, error, hello);
 
    /* Finish the D-Bus method call. */
    hello_complete_say (hello, invocation);

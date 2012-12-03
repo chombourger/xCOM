@@ -19,9 +19,10 @@
  */
 
 #include <xCOM.h>
-#include "component.h"
-
 #include <stdio.h>
+#include <string.h>
+
+#include "component.h"
 
 /* examples.IHello.Say implementation for port Hello */
 xc_result_t
@@ -31,6 +32,7 @@ hello_say (
    void (* Say_result) (
       xc_handle_t importHandle,
       xc_result_t result,
+      char *response,
       void *user_data
    ),
    void (* Say_error) (
@@ -42,7 +44,8 @@ hello_say (
 ) {
    printf ("you said: '%s'\n", arg_greeting);
    if (Say_result != NULL) {
-      Say_result (importHandle, XC_OK, user_data);
+      char *response = strdup ("how are you?");
+      Say_result (importHandle, XC_OK, response, user_data);
    }
    return XC_OK;
 }

@@ -3,8 +3,9 @@ def global_say_error (importHandle, result, userData):
    print 'python> global error function for IHello.Say() called';
    userData.m_error (importHandle, result, userData.m_user);
 
-def global_say_result (importHandle, result, userData):
+def global_say_result (importHandle, result, response, userData):
    print 'python> global result function for IHello.Say() called';
+   print 'python> respone: ' + response;
    userData.m_result (importHandle, result, userData.m_user);
 
 class App:
