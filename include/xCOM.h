@@ -536,6 +536,32 @@ xCOM_ImportGetSpecific (
 XCOM_EXPORT;
 
 /**
+  * Get the handle of the client component for the specified import.
+  *
+  * @param importHandle handle of the import
+  * @return handle of the client component or XC_INVALID_HANDLE on error
+  *
+  */
+xc_handle_t
+xCOM_ImportGetClient (
+   xc_handle_t importHandle
+)
+XCOM_EXPORT;
+
+/**
+  * Get the handle of the server component for the specified import.
+  *
+  * @param importHandle handle of the import
+  * @return handle of the server component or XC_INVALID_HANDLE on error
+  *
+  */
+xc_handle_t
+xCOM_ImportGetServer (
+   xc_handle_t importHandle
+)
+XCOM_EXPORT;
+
+/**
   * Close a previously opened import. This method is to be called from the client
   * component (would not be safe from the server as it cannot assume how client(s)
   * are implemented).

@@ -652,7 +652,10 @@ xCOM_ImportSetSpecific (
    import_t *importPtr;
    xc_result_t result = XC_ERR_NOENT;
 
-   TRACE3 (("called with importHandle=%u", importHandle));
+   TRACE3 ((
+      "called with componentHandle=%u, importHandle=%u, user_data=%p",
+      componentHandle, importHandle, user_data
+   ));
    import_module_lock ();
 
    importPtr = handle_dir_get (importHandles, importHandle);
@@ -680,7 +683,7 @@ xCOM_ImportGetSpecific (
    import_t *importPtr;
    void *result = NULL;
 
-   TRACE3 (("called with importHandle=%u", importHandle));
+   TRACE3 (("called with componentHandle=%u, importHandle=%u", componentHandle, importHandle));
    import_module_lock ();
 
    importPtr = handle_dir_get (importHandles, importHandle);
@@ -695,6 +698,46 @@ xCOM_ImportGetSpecific (
 
    import_module_unlock ();
    TRACE3 (("exiting with result=%p", result));
+   return result;
+}
+
+xc_handle_t
+xCOM_ImportGetClient (
+   xc_handle_t importHandle
+) {
+   import_t *importPtr;
+   xc_handle_t result = XC_INVALID_HANDLE;
+
+   TRACE3 (("called with importHandle=%u", importHandle));
+   import_module_lock ();
+
+   importPtr = handle_dir_get (importHandles, importHandle);
+   if ((importPtr != NULL) && (importPtr->state = IMPORT_STATE_OPENED)) {
+      result = importPtr->clientHandle;
+   }
+
+   import_module_unlock ();
+   TRACE3 (("exiting with result=%u", result));
+   return result;
+}
+
+xc_handle_t
+xCOM_ImportGetServer (
+   xc_handle_t importHandle
+) {
+   import_t *importPtr;
+   xc_handle_t result = XC_INVALID_HANDLE;
+
+   TRACE3 (("called with importHandle=%u", importHandle));
+   import_module_lock ();
+
+   importPtr = handle_dir_get (importHandles, importHandle);
+   if ((importPtr != NULL) && (importPtr->state = IMPORT_STATE_OPENED)) {
+      result = importPtr->serverHandle;
+   }
+
+   import_module_unlock ();
+   TRACE3 (("exiting with result=%u", result));
    return result;
 }
 
