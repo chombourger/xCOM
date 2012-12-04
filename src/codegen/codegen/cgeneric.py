@@ -383,9 +383,6 @@ class CodeGenerator:
       else:
          return '';
 
-   def write_queue_copy_args_prologue (self, file):
-      return None;     
-
    def write_queue_copy_args_epilogue (self, m, file):
       return None;     
 
@@ -408,11 +405,11 @@ class CodeGenerator:
       file.write('__call_%s (\n'%(self.name_provided_method(p,m)));
       file.write('   void *_message\n');
       file.write(') {\n');
-      file.write('   struct __queued_message *header = _message;\n');
+      file.write('   %s *header = _message;\n'%(self.name_queued_message_struct()));
       if args > 0:
          file.write('   struct __%s_message *message = _message;\n'%(self.name_provided_method(p,m)));
       else:
-         file.write('   struct __queued_message *message = _message;\n');
+         file.write('   %s *message = _message;\n'%(self.name_queued_message_struct()));
       file.write ('   void (* result_cb) %s = header->result;\n'%(self.proto_method_result(m, '   ')));
       file.write ('   void (* error_cb) %s = header->error;\n'%(self.proto_method_error(m, '   ')));
       file.write('   xc_result_t result = %s (\n'%(self.name_provided_method(p,m)));
@@ -433,6 +430,13 @@ class CodeGenerator:
    def source_write_free_message (self, m, file):
       file.write('   free (message);\n');
 
+   def source_write_init_queued_call (self, m, file):
+      file.write('      memset (message, 0, sizeof (*message));\n');
+      file.write('      header->result = %s_result;\n'%(self.name_method(m)));
+      file.write('      header->error = %s_error;\n'%(self.name_method(m)));
+      file.write('      header->user_data = user_data;\n');
+      file.write('      header->importHandle = importHandle;\n');
+
    def write_queued_message_structs (self, file):
       for c in self.m_components:
          for p in c.ports():
@@ -444,7 +448,7 @@ class CodeGenerator:
                   if args > 0:
                      file.write('/* %s: %s() */\n'%(intf.name(), m.name()));
                      file.write('struct __%s_message {\n'%(self.name_provided_method(p,m)));
-                     file.write('   struct __queued_message __queued_message;\n');
+                     file.write('   %s __queued_message;\n'%(self.name_queued_message_struct()));
                      for a in m.arguments():
                         if a.direction() == 'in':
                            file.write('   %s %s;\n'%(self.queue_arg_type(a), self.name_argument(a)));
@@ -455,7 +459,7 @@ class CodeGenerator:
                      file.write('   void *_message\n');
                      file.write(') {\n');
                      file.write('   struct __%s_message *message = _message;\n'%(self.name_provided_method(p,m)));
-                     file.write('   struct __queued_message *header = _message;\n');
+                     file.write('   %s *header = _message;\n'%(self.name_queued_message_struct()));
                      for a in m.arguments():
                         if a.direction() == 'in':
                            free_expr = self.queue_free_arg_expr (a, 'message->%s'%(self.name_argument(a)));
@@ -473,19 +477,14 @@ class CodeGenerator:
                   if args > 0:
                      file.write('   struct __%s_message *message;\n'%(self.name_provided_method(p,m)));
                   else:
-                     file.write('   struct __queued_message *message;\n');
-                  file.write('   struct __queued_message *header;\n');
+                     file.write('   %s *message;\n'%(self.name_queued_message_struct()));
+                  file.write('   %s *header;\n'%(self.name_queued_message_struct()));
                   file.write('   xc_result_t result = XC_OK;\n');
                   file.write('   message = malloc (sizeof (*message));\n');
+                  file.write('   header = (%s *) message;\n'%(self.name_queued_message_struct()));
                   file.write('   if (message != NULL) {\n');
-                  file.write('      memset (message, 0, sizeof (*message));\n');
-                  file.write('      header = (struct __queued_message *) message;\n');
-                  file.write('      header->result = %s_result;\n'%(self.name_method(m)));
-                  file.write('      header->error = %s_error;\n'%(self.name_method(m)));
-                  file.write('      header->user_data = user_data;\n');
+                  self.source_write_init_queued_call (m, file);
                   file.write('      header->handler = __call_%s;\n'%(self.name_provided_method(p,m)));
-                  file.write('      header->importHandle = importHandle;\n');
-                  self.write_queue_copy_args_prologue (file);
                   if args > 0:
                      file.write('      header->free = __free_%s;\n'%(self.name_provided_method(p,m)));
                   else:
@@ -546,12 +545,12 @@ class CodeGenerator:
       file.write ('   void (* handler) (void *_message);\n');
       file.write ('   xc_handle_t importHandle;\n');
 
-   def source_write_init_destroy_prologue (self, component, file):
-      return None;
+   def name_queued_message_struct (self):
+      return 'struct __queued_message';
 
    def source_write_global_decls (self, file):
       file.write ('/* struct for queued messages. */\n');
-      file.write ('struct __queued_message {\n');
+      file.write ('%s {\n'%(self.name_queued_message_struct()));
       self.source_write_queued_message_struct_members (file);
       file.write ('};\n');
       file.write ('\n');
@@ -567,7 +566,7 @@ class CodeGenerator:
       file.write ('__%s_run (\n'%(self.name_component(comp)));
       file.write ('   void *arg\n');
       file.write (') {\n');
-      file.write ('   struct __queued_message *message;\n');
+      file.write ('   %s *message;\n'%(self.name_queued_message_struct()));
       file.write ('   arg = arg;\n');
       file.write ('   while (1) {\n');
       file.write ('      sem_wait (&__sem);\n');
@@ -584,7 +583,7 @@ class CodeGenerator:
       file.write ('   }\n');
       file.write ('   message = XC_CLIST_HEAD (&__queued_messages);\n');
       file.write ('   while (!XC_CLIST_END (&__queued_messages, message)) {\n');
-      file.write ('      struct __queued_message *next = XC_CLIST_NEXT (message);\n');
+      file.write ('      %s *next = XC_CLIST_NEXT (message);\n'%(self.name_queued_message_struct()));
       file.write ('      XC_CLIST_REMOVE (message);\n');
       file.write ('      message->free (message);\n');
       file.write ('      message = next;\n');
@@ -593,8 +592,6 @@ class CodeGenerator:
       file.write ('   return NULL;\n');
       file.write ('}\n');
       file.write ('\n');
-
-      self.source_write_init_destroy_prologue (comp, file);
 
       file.write ('/* %s component init(). */\n'%(comp.name()));
       file.write ('static xc_result_t\n');

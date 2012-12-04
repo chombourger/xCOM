@@ -1052,7 +1052,9 @@ xCOM_GetComponentBundlePath (
 
    componentPtr = component_ref (componentHandle);
    if (componentPtr != NULL) {
-      result = componentPtr->bundlePtr->path;
+      if (componentPtr->bundlePtr != NULL) {
+         result = componentPtr->bundlePtr->path;
+      }
       component_unref (componentPtr);
    }
 

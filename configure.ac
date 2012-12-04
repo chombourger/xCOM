@@ -70,6 +70,7 @@ AC_CONFIG_FILES([
    ext/Makefile
    src/Makefile
    src/lib/Makefile
+   src/pycom/Makefile
    src/spawn/Makefile
    src/test/Makefile
    examples/Makefile
@@ -78,7 +79,10 @@ AC_CONFIG_FILES([
    examples/python/Makefile
    tests/Makefile
    tests/python.basic/Makefile
+   tests/python.basic/tests.in_b/Makefile
    tests/python.basic/tests.in_s/Makefile
+   tests/python.basic/tests.in_y/Makefile
+   tests/python.basic/tests.out_s/Makefile
 ])
 
 AC_OUTPUT

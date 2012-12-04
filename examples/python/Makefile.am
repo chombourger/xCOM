@@ -5,7 +5,7 @@ AM_CFLAGS    = @CFLAG_VISIBILITY@
 lib_LTLIBRARIES = libpython-example.la
 libpython_example_la_SOURCES = component.c
 libpython_example_la_LIBADD = -l$(PYTHON_LIB) -lpthread -ldl
-libpython_example_la_LDFLAGS = -version-info 0:0:0
+libpython_example_la_LDFLAGS = $(abs_top_builddir)/src/pycom/libpycom.la -version-info 0:0:0
 MOSTLYCLEANFILES = component.c component.h
 
 install-data-hook:

@@ -5,7 +5,7 @@ class Test:
       self.m_ihandle = ihandle;
 
    def check (self, data, result, error, user_data):
-      if data == 'test string argument':
+      if data == 0xcd:
          if result is not None:
             result (self.m_ihandle, 0, user_data);
             return 0;

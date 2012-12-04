@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface name="tests.in_y" version-major="1" version-minor="0">
+   <method name="check">
+      <arg name="value" type="y"></arg>
+   </method>
+</interface>

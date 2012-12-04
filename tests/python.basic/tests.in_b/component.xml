@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="tests.python.basic.in_b" version-major="1" version-minor="0" init="false" destroy="false">
+   <port name="Test" interface="tests.in_b" register="true"></port>
+</component>
