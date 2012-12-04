@@ -1,4 +1,4 @@
-AM_CPPFLAGS  = -I $(srcdir)/../../include
+AM_CPPFLAGS  = -I $(abs_top_srcdir)/include
 AM_CPPFLAGS += -D __XCOM__ -D XC_HOST='"$(host_triplet)"'
 AM_CFLAGS    = -Wall -Wextra -Werror @CFLAG_VISIBILITY@ $(GLIB_CFLAGS) $(EXPAT_CFLAGS)
 lib_LTLIBRARIES = libxcom.la

@@ -1,6 +1,6 @@
 libdir = $(exec_prefix)/components/examples.python/Code/$(host_triplet)
 pydir=$(libdir)/../python
-AM_CPPFLAGS  = -I $(srcdir)/../../include -I $(srcdir)/../include -I $(PYTHON_INCLUDE_DIR)
+AM_CPPFLAGS  = -I $(abs_top_srcdir)/include -I $(PYTHON_INCLUDE_DIR)
 AM_CFLAGS    = @CFLAG_VISIBILITY@
 lib_LTLIBRARIES = libpython-example.la
 libpython_example_la_SOURCES = component.c
@@ -15,8 +15,8 @@ install-data-hook:
 	$(INSTALL_DATA) examples/python/App.py $(pydir)/examples/python/
 	
 component.c component.h: component.xml
-	$(srcdir)/../../src/codegen/xcom-codegen	\
+	$(abs_top_srcdir)/src/codegen/xcom-codegen	\
 		-I $(srcdir)/../interfaces		\
-		-I $(srcdir)/../../interfaces		\
+		-I $(abs_top_srcdir)/interfaces		\
 		-p python -n component $<
 

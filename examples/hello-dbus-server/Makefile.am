@@ -1,5 +1,5 @@
 libdir = $(exec_prefix)/components/examples.hello/Code/$(host_triplet)
-AM_CPPFLAGS  = -I $(srcdir)/../../include -I $(srcdir)/../include
+AM_CPPFLAGS  = -I $(abs_top_srcdir)/include
 AM_CFLAGS    = @CFLAG_VISIBILITY@ $(GIO_UNIX_CFLAGS)
 lib_LTLIBRARIES = libhello-dbus-server.la
 libhello_dbus_server_la_SOURCES = component.c server.c hello-dbus.c
@@ -14,9 +14,9 @@ hello-dbus.c hello-dbus.h: hello.xml Makefile
 		$<
 
 component.c component.h: component.xml
-	$(srcdir)/../../src/codegen/xcom-codegen	\
+	$(abs_top_srcdir)/src/codegen/xcom-codegen	\
 		-I $(srcdir)/../interfaces		\
-		-I $(srcdir)/../../interfaces		\
+		-I $(abs_top_srcdir)/interfaces		\
 		-n component $<
 
 server.c: component.h hello-dbus.h
