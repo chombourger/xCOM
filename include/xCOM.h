@@ -347,6 +347,36 @@ xCOM_GetComponentBundlePath (
 XCOM_EXPORT;
 
 /**
+  * Set a user-specific value for the specified component. This should be used
+  * by xCOM language bindings to attach a context object to the component.
+  *
+  * @param componentHandle handle of the component
+  * @param user_data data to be stored in the component
+  * @return XC_OK on success, an xCOM error code otherwise.
+  *
+  */
+xc_result_t
+xCOM_SetSpecific (
+   xc_handle_t componentHandle,
+   void *user_data
+)
+XCOM_EXPORT;
+
+/**
+  * Get the user-specific value for the specified component. The value should have
+  * been previously set with xCOM_SetSpecific or NULL will be returned.
+  *
+  * @param componentHandle handle of the component
+  * @return the user-defined value or NULL on error (or if not set).
+  *
+  */
+void *
+xCOM_GetSpecific (
+   xc_handle_t componentHandle
+)
+XCOM_EXPORT;
+
+/**
   * Execute the xCOM framework event loop.
   *
   * @return XC_OK on success, an xCOM error otherwise.
@@ -497,7 +527,7 @@ XCOM_EXPORT;
   * @param importHandle handle of the import
   * @return the user-defined value or NULL on error (or if not set).
   *
-  */  
+  */
 void *
 xCOM_ImportGetSpecific (
    xc_handle_t componentHandle,

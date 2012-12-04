@@ -63,7 +63,8 @@ struct Component {
    xc_clist_t imports;      /**< Imports this component is servicing. */
    unsigned int portsCount; /**< Total number of ports provided/required by this component. */
    port_t **ports;          /**< Ports of this component. */
-   pthread_mutex_t lock;
+   void *userData;          /**< User specific data, set via xCOM_SetSpecific. */
+   pthread_mutex_t lock;    /**< Lock for guarding access to this component. */
    xc_result_t (* init) (xc_handle_t);
    xc_result_t (* destroy) (xc_handle_t);
 };

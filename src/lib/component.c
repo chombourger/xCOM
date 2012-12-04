@@ -158,6 +158,7 @@ component_new (
       componentPtr->references = 0;
       componentPtr->portsCount = 0;
       componentPtr->ports = NULL;
+      componentPtr->userData = NULL;
       XC_CLIST_INIT (&componentPtr->imports);
       componentPtr->id = handle_dir_push (directory, componentPtr);
       if (componentPtr->id != XC_INVALID_HANDLE) {
@@ -302,6 +303,7 @@ component_unload (
          componentPtr->handle = NULL;
       }
       componentPtr->state = COMP_STATE_NULL;
+      componentPtr->userData = NULL;
    }
    
    pthread_mutex_unlock (&componentPtr->lock);
@@ -1051,10 +1053,58 @@ xCOM_GetComponentBundlePath (
    componentPtr = component_ref (componentHandle);
    if (componentPtr != NULL) {
       result = componentPtr->bundlePtr->path;
+      component_unref (componentPtr);
    }
-   component_unref (componentPtr);
 
    TRACE3 (("exiting with result='%s'", result));
+   return result;
+}
+
+xc_result_t
+xCOM_SetSpecific (
+   xc_handle_t componentHandle,
+   void *user_data
+) {
+   component_t *componentPtr;
+   xc_result_t result;
+
+   TRACE3 (("called with componentHandle=%u", componentHandle));
+
+   componentPtr = component_ref (componentHandle);
+   if (componentPtr != NULL) {
+      componentPtr->userData = user_data;
+      component_unref (componentPtr);
+      result = XC_OK;
+   }
+   else {
+      TRACE1 (("invalid component handle %u", componentHandle));
+      result = XC_ERR_NOENT;
+   }
+
+   TRACE3 (("exiting with result=%d", result));
+   return result;
+}
+
+void *
+xCOM_GetSpecific (
+   xc_handle_t componentHandle
+) {
+   component_t *componentPtr;
+   void *result;
+
+   TRACE3 (("called with componentHandle=%u", componentHandle));
+
+   componentPtr = component_ref (componentHandle);
+   if (componentPtr != NULL) {
+      result = componentPtr->userData;
+      component_unref (componentPtr);
+   }
+   else {
+      TRACE1 (("invalid component handle %u", componentHandle));
+      result = NULL;
+   }
+
+   TRACE3 (("exiting with result=%p", result));
    return result;
 }
 
