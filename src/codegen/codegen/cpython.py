@@ -379,6 +379,7 @@ class CodeGenerator(cgeneric.CodeGenerator):
 
       file.write ('   PyObject *object = xCOM_ImportGetSpecific (__component_handle, callPtr->importHandle);\n');
       file.write ('   if (object != NULL) {\n');
+      file.write ('      PyErr_Clear ();\n');
       file.write ('      oResult = PyObject_CallMethodObjArgs (\n');
       file.write ('         object,\n');
       file.write ('         callPtr->oMethodName,\n');
@@ -392,6 +393,7 @@ class CodeGenerator(cgeneric.CodeGenerator):
       file.write ('      );\n');
       file.write ('      if (oResult != NULL) Py_DECREF (oResult);\n');
       file.write ('      else {\n');
+      file.write ('         if (PyErr_Occurred ()) PyErr_Print ();\n');
       file.write ('         if (error_cb != NULL) error_cb (callPtr->importHandle, XC_ERR_INVAL, callPtr->user_data);\n');
       file.write ('      }\n');
       file.write ('   }\n');
