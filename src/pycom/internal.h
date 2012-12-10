@@ -22,7 +22,7 @@
 #define INTERNAL_H
 
 #include <Python.h>
-#include <pthread.h>
+#include <structmember.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -38,6 +38,37 @@ struct pyCOM_Context {
    PyThreadState *initStatePtr;
    PyObject *module;
 };
+
+/** The pycom.import object type. */
+extern PyTypeObject importType;
+
+/** The pycom.query object type. */
+extern PyTypeObject queryType;
+
+/** The native pycom.import structure. */
+typedef struct {
+   PyObject_HEAD
+   xc_handle_t importHandle; /**< Handle of this import. */
+} ImportObject;
+
+/** The native pycom.query structure. */
+typedef struct {
+   PyObject_HEAD
+   xc_handle_t queryHandle; /**< Handle of this query. */
+   unsigned int matches;    /**< Number of matches. */
+} QueryObject;
+
+PyMODINIT_FUNC
+pycom_module_init (
+   void
+);
+
+PyObject *
+pycom_query (
+   PyObject *self,
+   PyObject *args,
+   PyObject *kwdict
+);
 
 #endif /* INTERNAL_H */
 

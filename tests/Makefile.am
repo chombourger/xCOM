@@ -5,4 +5,5 @@ SUBDIRS += python.basic/tests.in_b
 SUBDIRS += python.basic/tests.in_s
 SUBDIRS += python.basic/tests.in_y
 SUBDIRS += python.basic/tests.out_s
+SUBDIRS += python.query
 endif

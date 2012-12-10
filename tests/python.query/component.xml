@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="tests.python.query" version-major="1" version-minor="0" init="false" destroy="false">
+   <port name="Test" interface="xcom.ITest" register="true"></port>
+   <port name="Tests" interface="xcom.ITest" required="true" runtime="true"></port>
+</component>

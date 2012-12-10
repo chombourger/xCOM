@@ -83,6 +83,7 @@ AC_CONFIG_FILES([
    tests/python.basic/tests.in_s/Makefile
    tests/python.basic/tests.in_y/Makefile
    tests/python.basic/tests.out_s/Makefile
+   tests/python.query/Makefile
 ])
 
 AC_OUTPUT

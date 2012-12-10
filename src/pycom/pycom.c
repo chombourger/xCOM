@@ -88,12 +88,14 @@ pyCOM_Init (
          contextPtr->initStatePtr = PyThreadState_Swap (NULL);
          contextPtr->interpreterPtr = Py_NewInterpreter ();
          if (contextPtr->interpreterPtr != NULL) {
+            pycom_module_init ();
             PyRun_SimpleString (scriptPtr);
             contextPtr->module = PyImport_ImportModule (componentDeclPtr->name);
             if (contextPtr->module != NULL) {
                result = xCOM_SetSpecific (componentHandle, contextPtr);
             }
             else {
+               if (PyErr_Occurred ()) PyErr_Print ();
                result = XC_ERR_NOENT;
             }
          }
