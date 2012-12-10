@@ -303,6 +303,7 @@ query_free (
 
    /* Free imports that were not xCOM_Import'ed. */
    if (queryPtr->firstImportPtr != NULL) {
+      TRACE4 (("freeing unused imports"));
       import_free_unused (queryPtr->firstImportPtr);
    }
 

@@ -729,6 +729,7 @@ component_close_imports (
    importPtr = XC_CLIST_HEAD (&componentPtr->imports);
    while (!XC_CLIST_END (&componentPtr->imports, importPtr)) {
       import_t *nextPtr = XC_CLIST_NEXT (importPtr);
+      TRACE4 (("deleting import #%u", importPtr->importHandle));
       XC_CLIST_REMOVE (importPtr);
       import_free (importPtr);
       importPtr = nextPtr;

@@ -477,6 +477,7 @@ import_close (
 
    clientComponentPtr = component_ref (importPtr->clientHandle);
    if (clientComponentPtr != NULL) {
+      TRACE4 (("removing import #%u from component #%u", importPtr->importHandle, importPtr->clientHandle));
       component_remove_import (clientComponentPtr, importPtr);
       component_unref (clientComponentPtr);
    }
@@ -575,7 +576,8 @@ import_free_unused (
    while (currentImportPtr != NULL) {
       import_t *previousImportPtr = currentImportPtr->previousImportPtr;
       if (currentImportPtr->state == IMPORT_STATE_QUERIED) {
-         import_free (currentImportPtr);
+         TRACE4 (("deleting unused import #%u", currentImportPtr->importHandle));
+         import_close (currentImportPtr);
       }
       currentImportPtr = previousImportPtr;
    }
@@ -585,7 +587,8 @@ import_free_unused (
    while (currentImportPtr != NULL) {
       import_t *nextImportPtr = currentImportPtr->nextImportPtr;
       if (currentImportPtr->state == IMPORT_STATE_QUERIED) {
-         import_free (currentImportPtr);
+         TRACE4 (("deleting unused import #%u", currentImportPtr->importHandle));
+         import_close (currentImportPtr);
       }
       currentImportPtr = nextImportPtr;
    }
