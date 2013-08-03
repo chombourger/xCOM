@@ -64,11 +64,22 @@ typedef int32_t xc_result_t;
 /** Resource is busy. */
 #define XC_ERR_BUSY ((xc_result_t) 6)
 
+/** Internal error */
+#define XC_ERR_INTERNAL ((xc_result_t) 7)
+
+/** Unknown error */
+#define XC_ERR_UNKNOWN ((xc_result_t) 8)
+
 /** Key associated to xCOM objects to avoid passing pointers. */
 typedef uint32_t xc_handle_t;
 
 /** Invalid handle number. */
 #define XC_INVALID_HANDLE ((xc_handle_t)0)
+
+/** xCOM Semaphore */
+typedef struct {
+   char data [64];
+} xc_sem_t;
 
 #endif /* XCOM_H */
 

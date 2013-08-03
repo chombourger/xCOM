@@ -31,7 +31,27 @@ gl_VISIBILITY
 # Checks for libraries.
 
 # Checks for header files.
-AC_CHECK_HEADERS([assert.h dirent.h dlfcn.h errno.h fcntl.h pthread.h stdarg.h stddef.h stdio.h stdlib.h string.h sys/stat.h sys/time.h sys/types.h unistd.h])
+AC_CHECK_HEADERS([  \
+   assert.h         \
+   dirent.h         \
+   dlfcn.h          \
+   errno.h          \
+   fcntl.h          \
+   pthread.h        \
+   stdarg.h         \
+   stddef.h         \
+   stdio.h          \
+   stdlib.h         \
+   string.h         \
+   unistd.h         \
+                    \
+   mach/semaphore.h \
+   mach/task.h      \
+                    \
+   sys/stat.h       \
+   sys/time.h       \
+   sys/types.h      \
+])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL

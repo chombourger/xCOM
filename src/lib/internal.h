@@ -38,6 +38,7 @@
 #endif
 
 #include <xCOM.h>
+#include <xCOM/semaphore.h>
 
 #ifdef HAVE_ASSERT_H
 #include <assert.h>
