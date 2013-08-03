@@ -402,6 +402,7 @@ bundle_load_components (
    xc_result_t result;
    struct stat st;
    char *codePath;
+   char *compPath;
    DIR *dir;
    struct dirent *ent;
    component_t *componentPtr;
@@ -413,9 +414,10 @@ bundle_load_components (
    /* Construct path to component code. */
    TRACE4 (("XC_HOST is '%s'", XC_HOST));
    codePath = (char *) malloc (PATH_MAX);
+   compPath = (char *) malloc (PATH_MAX);
 
-   if (codePath != NULL) {
-      sprintf (codePath, "%s/%s/%s", bundlePtr->path, CODE_FOLDER, XC_HOST);
+   if ((codePath != NULL) || (compPath != NULL)) {
+      snprintf (codePath, PATH_MAX, "%s/%s/%s", bundlePtr->path, CODE_FOLDER, XC_HOST);
       TRACE4 (("trying to load component code from '%s'", codePath));
 
       /* Open the Code directory for the built target (XC_HOST). */
@@ -426,7 +428,8 @@ bundle_load_components (
 
          result = XC_ERR_INVAL;
          while ((ent = readdir (dir)) != NULL) {
-            result = fstatat (fd, ent->d_name, &st, AT_SYMLINK_NOFOLLOW);
+            snprintf (compPath, PATH_MAX, "%s/%s", codePath, ent->d_name);
+            result = lstat (compPath, &st);
             if ((result == 0) && (S_ISREG (st.st_mode)) && (IS_EXEC (st.st_mode))) {
                TRACE4 (("loading '%s'", ent->d_name));
                componentPtr = NULL;
@@ -459,13 +462,14 @@ bundle_load_components (
          TRACE1 (("failed to open directory '%s'!", codePath));
          result = XC_ERR_NODIR;
       }
-
-      free (codePath);
    }
    else {
       TRACE1 (("failed to allocate memory!"));
       result = XC_ERR_NOMEM;
    }
+
+   free (codePath);
+   free (compPath);
 
    TRACE3 (("exiting with result=%d", result));
    return result;   
