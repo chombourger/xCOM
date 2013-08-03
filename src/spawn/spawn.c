@@ -43,9 +43,10 @@
 #endif
 
 #include <getopt.h>
-#include <semaphore.h>
 
 #include <xCOM.h>
+#include <xCOM/semaphore.h>
+
 #include "component.h"
 
 static void
@@ -54,10 +55,10 @@ service_result (
    xc_result_t result,
    void *user_data
 ) {
-   sem_t *waitSem = user_data;
+   xc_sem_t *waitSem = user_data;
    importHandle = importHandle;
    result = result;
-   sem_post (waitSem);
+   xc_sem_signal (waitSem);
 }
 
 static void
@@ -66,10 +67,10 @@ service_error (
    xc_result_t result,
    void *user_data
 ) {
-   sem_t *waitSem = user_data;
+   xc_sem_t *waitSem = user_data;
    importHandle = importHandle;
    fprintf (stderr, "warning: service failed to start/stop (%d)\n", result);
-   sem_post (waitSem);
+   xc_sem_signal (waitSem);
 }
 
 static void
@@ -99,7 +100,7 @@ main (
    xcom_iapplication_t *appImpl;
    xcom_iservice_t **serviceImpls = NULL;
    unsigned int flags = XC_LOADF_NONE;
-   sem_t serviceSem;
+   xc_sem_t serviceSem;
    xc_result_t result;
 
    while (1) {
@@ -142,7 +143,7 @@ main (
 
       /* Query and load components implementing xcom.IService. */
       if (result == XC_OK) {
-         sem_init (&serviceSem, 0, 0);
+         xc_sem_init (&serviceSem, 0);
          result = xCOM_QueryInterface (
             XC_INVALID_HANDLE,
             XCOM_ISERVICE_NAME,
@@ -169,7 +170,7 @@ main (
                            serviceHandles[i] = serviceHandle;
                            result = serviceImpls[i]->Start (serviceHandles[i], service_result, service_error, &serviceSem);
                            if (result == XC_OK) {
-                              sem_wait (&serviceSem);
+                              xc_sem_wait (&serviceSem);
                            }
                         }
                         else {
@@ -241,14 +242,14 @@ main (
          if (serviceHandles[i] != XC_INVALID_HANDLE) {
             result = serviceImpls[i]->Stop (serviceHandles[i], service_result, service_error, &serviceSem);
             if (result == XC_OK) {
-               sem_wait (&serviceSem);
+               xc_sem_wait (&serviceSem);
             }
             (void) xCOM_UnImport (serviceHandles[i]);
          }
       }
       free (serviceHandles); serviceHandles=NULL;
       free (serviceImpls); serviceImpls=NULL;
-      sem_destroy (&serviceSem);
+      xc_sem_destroy (&serviceSem);
 
       xCOM_Destroy ();
    }

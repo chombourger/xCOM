@@ -23,6 +23,7 @@
 #endif
 
 #include <xCOM.h>
+#include <xCOM/semaphore.h>
 
 #ifdef HAVE_STDBOOL_H
 #include <stdbool.h>
@@ -32,17 +33,13 @@
 #include <stdio.h>
 #endif
 
-//#ifdef HAVE_SEMAPHORE_H
-#include <semaphore.h>
-//#endif
-
 #include "component.h"
 
 /** Our component handle. */
 xc_handle_t componentHandle = XC_INVALID_HANDLE;
 
 struct TestData {
-   sem_t waitSem;
+   xc_sem_t waitSem;
    xc_result_t testResult;
 };
 
@@ -55,7 +52,7 @@ test_run_result (
    struct TestData *test = user_data;
    importHandle = importHandle;
    test->testResult = result;
-   sem_post (&test->waitSem);
+   xc_sem_signal (&test->waitSem);
 }
 
 /**
@@ -77,7 +74,7 @@ run_all_single (
    xcom_itest_t *testImpl;
    xc_result_t result;
 
-   sem_init (&testData.waitSem, 0, 0);
+   xc_sem_init (&testData.waitSem, 0);
 
    /* System-wide query for the xcom.ITest interface. */
    result = xCOM_QueryPort (
@@ -99,7 +96,7 @@ run_all_single (
                testLoaded ++;
                result = testImpl->Run (importHandle, test_run_result, test_run_result, &testData);
                if (result == XC_OK) {
-                  sem_wait (&testData.waitSem);
+                  xc_sem_wait (&testData.waitSem);
                   if (testData.testResult == XC_OK) {
                      /* Test passed. */
                      testPassed ++;
@@ -123,7 +120,7 @@ run_all_single (
       result = XC_ERR_NOENT;
    }
 
-   sem_destroy (&testData.waitSem);
+   xc_sem_destroy (&testData.waitSem);
    return result;
 }
 

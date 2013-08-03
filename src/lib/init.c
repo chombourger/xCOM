@@ -29,7 +29,7 @@ static pthread_mutex_t globalLock = PTHREAD_MUTEX_INITIALIZER;
 #ifdef GLIB_ENABLED
 static GMainLoop *mainLoop = NULL;
 #else
-static sem_t runSem;
+static xc_sem_t runSem;
 #endif
 
 void
@@ -67,7 +67,7 @@ xCOM_Init (
       mainLoop = g_main_loop_new (NULL, FALSE);
       if (mainLoop == NULL) result = XC_ERR_NOMEM;
 #else
-      sem_init (&runSem, 0, 0);
+      xc_sem_init (&runSem, 0);
 #endif
 
       /* Initialize internal sub-modules. */
@@ -117,7 +117,7 @@ xCOM_Destroy (
 #ifdef GLIB_ENABLED
       g_main_loop_unref (mainLoop);
 #else
-      sem_destroy (&runSem);
+      xc_sem_destroy (&runSem);
 #endif
    }
 
@@ -139,7 +139,7 @@ xCOM_Exec (
    result = XC_OK;
 #else
    do {
-      result = sem_wait (&runSem);
+      result = xc_sem_wait (&runSem);
    } while ((result == -1) && (errno = EINTR));
 
    if (result != XC_OK) {
@@ -164,7 +164,7 @@ xCOM_Quit (
    g_main_loop_quit (mainLoop);
    result = XC_OK;
 #else
-   result = sem_post (&runSem);
+   result = xc_sem_signal (&runSem);
 #endif
 
    if (result != XC_OK) {
