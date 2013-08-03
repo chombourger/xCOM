@@ -11,6 +11,8 @@ AC_CONFIG_SUBDIRS([ext/jansson])
 
 AC_CANONICAL_HOST
 
+m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
+
 # Libtool
 LT_INIT
 
