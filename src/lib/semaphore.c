@@ -18,6 +18,7 @@
  *
  */
 
+#define  TRACE_CLASS_DEFAULT SEMAPHORE
 #include "internal.h"
 
 #if defined(HAVE_MACH_SEMAPHORE_H)
@@ -41,59 +42,112 @@ xc_sem_init (
    xc_sem_t *semPtr,
    int value
 ) {
-   if (sizeof (xc_sem_t) > sizeof (sem_t)) {
-      int result = sem_init ((sem_t *) semPtr, 0, value);
+   xc_result_t result;
+   int err;
+
+   TRACE3 (("called with semPtr=%p, value=%d", semPtr, value));
+
+   if (sizeof (xc_sem_t) >= sizeof (sem_t)) {
+      result = sem_init ((sem_t *) semPtr, 0, value);
       if (result == 0) {
-         return XC_OK;
+         result = XC_OK;
       }
-      switch (errno) {
-         case EINVAL: return XC_ERR_INVAL;
-         default    : return XC_ERR_UNKNOWN;
+      else {
+         err = errno;
+         TRACE1 (("sem_init() failed: %s", strerror (err)));
+         switch (err) {
+            case EINVAL: result = XC_ERR_INVAL;   break;
+            default    : result = XC_ERR_UNKNOWN; break;
+         }
       }
    }
-   return XC_ERR_INTERNAL;
+   else {
+      TRACE1 (("internal error: sizeof(xc_sem_t) shall be >= %d", sizeof (sem_t)));
+      result = XC_ERR_INTERNAL;
+   }
+
+   TRACE3 (("exiting with result=%d", result));
+   return result;
 }
 
 xc_result_t
 xc_sem_destroy (
    xc_sem_t *semPtr
 ) {
-   int result = sem_destroy ((sem_t *) semPtr);
+   xc_result_t result;
+   int err;
+
+   TRACE3 (("called with semPtr=%p", semPtr));
+   result = sem_destroy ((sem_t *) semPtr);
+
    if (result == 0) {
-      return XC_OK;
+      result = XC_OK;
    }
-   switch (errno) {
-      case EINVAL: return XC_ERR_INVAL;
-      default    : return XC_ERR_UNKNOWN;
+   else {
+      err = errno;
+      TRACE1 (("sem_destroy() failed: %s", strerror (err)));
+      switch (errno) {
+         case EINVAL: result = XC_ERR_INVAL;   break;
+         default    : result = XC_ERR_UNKNOWN; break;
+      }
    }
+
+   TRACE3 (("exiting with result=%d", result));
+   return result;
 }
 
 xc_result_t
 xc_sem_signal (
    xc_sem_t *semPtr
 ) {
-   int result = sem_post ((sem_t *) semPtr);
+   xc_result_t result;
+   int err;
+
+   TRACE3 (("called with semPtr=%p", semPtr));
+   result = sem_post ((sem_t *) semPtr);
+
    if (result == 0) {
-      return XC_OK;
+      result = XC_OK;
    }
-   switch (errno) {
-      case EINVAL: return XC_ERR_INVAL;
-      default    : return XC_ERR_UNKNOWN;
+   else {
+      err = errno;
+      TRACE1 (("sem_post() failed: %s", strerror (err)));
+      switch (errno) {
+         case EINVAL: result = XC_ERR_INVAL;   break;
+         default    : result = XC_ERR_UNKNOWN; break;
+      }
    }
+
+   TRACE3 (("exiting with result=%d", result));
+   return result;
 }
 
 xc_result_t
 xc_sem_wait (
    xc_sem_t *semPtr
 ) {
-   int result = sem_wait ((sem_t *) semPtr);
+   xc_result_t result;
+   int err;
+
+   TRACE3 (("called with semPtr=%p", semPtr));
+   do {
+      result = sem_wait ((sem_t *) semPtr);
+   } while ((result == -1) && (errno == EINTR));
+
    if (result == 0) {
-      return XC_OK;
+      result = XC_OK;
    }
-   switch (errno) {
-      case EINVAL: return XC_ERR_INVAL;
-      default    : return XC_ERR_UNKNOWN;
+   else {
+      err = errno;
+      TRACE1 (("sem_wait() failed: %s", strerror (err)));
+      switch (errno) {
+         case EINVAL: result = XC_ERR_INVAL;   break;
+         default    : result = XC_ERR_UNKNOWN; break;
+      }
    }
+
+   TRACE3 (("exiting with result=%d", result));
+   return result;
 }
 
 #endif /* USE_POSIX_SEMAPHORE */
@@ -105,6 +159,7 @@ xc_sem_init (
    xc_sem_t *semPtr,
    int value
 ) {
+
    if (sizeof (xc_sem_t) > sizeof (semaphore_t)) {
       kern_return_t result = semaphore_create (
          mach_task_self (),
