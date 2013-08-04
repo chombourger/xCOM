@@ -496,7 +496,7 @@ class CodeGenerator:
                   file.write('      if (result == XC_OK) {\n');
                   file.write('         pthread_mutex_lock (&__lock);\n');
                   file.write('         XC_CLIST_ADDTAIL (&__queued_messages, message);\n');
-                  file.write('         sem_post (&__sem);\n');
+                  file.write('         xc_sem_signal (&__sem);\n');
                   file.write('         pthread_mutex_unlock (&__lock);\n');
                   file.write('      }\n');
                   file.write('      else {\n');
@@ -526,7 +526,7 @@ class CodeGenerator:
       file.write ('static pthread_mutex_t __lock = PTHREAD_MUTEX_INITIALIZER;\n');
       file.write ('\n');
       file.write ('/* semaphore to wake-up the message queue thread. */\n');
-      file.write ('static sem_t __sem;\n');
+      file.write ('static xc_sem_t __sem;\n');
       file.write ('\n');
       file.write ('/* message queue thread. */\n');
       file.write ('static pthread_t __queue_thread;\n');
@@ -569,7 +569,7 @@ class CodeGenerator:
       file.write ('   %s *message;\n'%(self.name_queued_message_struct()));
       file.write ('   arg = arg;\n');
       file.write ('   while (1) {\n');
-      file.write ('      sem_wait (&__sem);\n');
+      file.write ('      xc_sem_wait (&__sem);\n');
       file.write ('      pthread_mutex_lock (&__lock);\n');
       file.write ('      if (__quit == false) {\n');
       file.write ('         message = XC_CLIST_HEAD (&__queued_messages);\n');
@@ -605,7 +605,7 @@ class CodeGenerator:
       file.write ('   if (result == XC_OK) {\n');
       file.write ('      XC_CLIST_INIT (&__queued_messages);\n');
       file.write ('      __quit = false;\n');
-      file.write ('      result = sem_init (&__sem, 0, 0);\n');
+      file.write ('      result = xc_sem_init (&__sem, 0);\n');
       file.write ('      if (result == 0) {\n');
       file.write ('         result = pthread_create (\n');
       file.write ('            &__queue_thread,\n');
@@ -614,7 +614,7 @@ class CodeGenerator:
       file.write ('            NULL\n');
       file.write ('         );\n');
       file.write ('         if (result != 0) {\n');
-      file.write ('            sem_destroy (&__sem);\n');
+      file.write ('            xc_sem_destroy (&__sem);\n');
       file.write ('         }\n');
       file.write ('      }\n');
       file.write ('      if (result != 0) {\n');
@@ -634,9 +634,9 @@ class CodeGenerator:
       file.write ('   xc_result_t result;\n');
       file.write ('   componentHandle = componentHandle;\n');
       file.write ('   __quit = true;\n');
-      file.write ('   sem_post (&__sem);\n');
+      file.write ('   xc_sem_signal (&__sem);\n');
       file.write ('   pthread_join (__queue_thread, NULL);\n');
-      file.write ('   sem_destroy (&__sem);\n');
+      file.write ('   xc_sem_destroy (&__sem);\n');
       self.source_write_call_user_destroy (comp, file);
       file.write ('   return result;\n');
       file.write ('}\n');
@@ -660,8 +660,8 @@ class CodeGenerator:
 
    def write_source_includes (self, file):
       file.write ('#include <xCOM/clist.h>\n');
+      file.write ('#include <xCOM/semaphore.h>\n');
       file.write ('#include <pthread.h>\n');
-      file.write ('#include <semaphore.h>\n');
       file.write ('#include <stdbool.h>\n');
       file.write ('#include <stdlib.h>\n');
       file.write ('#include <string.h>\n');
