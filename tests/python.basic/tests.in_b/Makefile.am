@@ -1,12 +1,15 @@
-libdir = $(exec_prefix)/components/tests.python.basic/Code/$(host_triplet)
-pydir=$(libdir)/../python
-AM_CPPFLAGS  = -I $(abs_top_srcdir)/include -I $(PYTHON_INCLUDE_DIR)
-AM_CFLAGS    = @CFLAG_VISIBILITY@
-lib_LTLIBRARIES = libpython-tests.in_b.la
-libpython_tests_in_b_la_SOURCES = component.c
-libpython_tests_in_b_la_LIBADD = -l$(PYTHON_LIB) -lpthread -ldl
-libpython_tests_in_b_la_LDFLAGS = $(abs_top_builddir)/src/pycom/libpycom.la -version-info 0:0:0
-MOSTLYCLEANFILES = component.c component.h
+libdir                           = $(exec_prefix)/components/tests.python.basic/Code/$(host_triplet)
+pydir                            = $(libdir)/../python
+AM_CPPFLAGS                      = -I $(abs_top_srcdir)/include
+AM_CPPFLAGS                     += $(PYTHON_CPPFLAGS)
+AM_CFLAGS                        = @CFLAG_VISIBILITY@
+lib_LTLIBRARIES                  = libpython-tests.in_b.la
+libpython_tests_in_b_la_SOURCES  = component.c
+libpython_tests_in_b_la_LIBADD   = -lpthread -ldl
+libpython_tests_in_b_la_LIBADD  += $(PYTHON_LDFLAGS)
+libpython_tests_in_b_la_LDFLAGS  = $(abs_top_builddir)/src/pycom/libpycom.la -version-info 0:0:0
+libpython_tests_in_b_la_LDFLAGS += $(PYTHON_EXTRA_LIBS) $(PYTHON_EXTRA_LDFLAGS)
+MOSTLYCLEANFILES                 = component.c component.h
 
 install-data-hook:
 	$(MKDIR_P) $(pydir)/tests/python/basic/in_b

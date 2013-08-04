@@ -1,5 +1,5 @@
 *
 !expat.m4
-!python.m4
+!ac_python_devel.m4
 !visibility.m4
 !.gitignore

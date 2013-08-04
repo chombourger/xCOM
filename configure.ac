@@ -38,6 +38,7 @@ AC_CHECK_HEADERS([  \
    errno.h          \
    fcntl.h          \
    pthread.h        \
+   semaphore.h      \
    stdarg.h         \
    stddef.h         \
    stdio.h          \
@@ -65,8 +66,8 @@ AC_CHECK_FUNCS([gettimeofday memset])
 AX_LIB_EXPAT
 
 # Python
-AX_PYTHON
-AM_CONDITIONAL(HAVE_PYTHON, [test "$ax_python_header" != "no"])
+AC_PYTHON_DEVEL
+AM_CONDITIONAL(HAVE_PYTHON, [test -n "$PYTHON_LDFLAGS"])
 
 PKG_CHECK_MODULES(                                                          
    [GLIB],                                                                  
